@@ -516,9 +516,11 @@ export default function Home() {
             <div className="text-center py-20 text-gray-400">
               データがありません。CSVファイルをアップロードしてください。
             </div>
-          </div>
-        </div>
+          )
+        )}
       </div>
-    </main>
+    </div>
+  </div>
+</main>
   );
 }
