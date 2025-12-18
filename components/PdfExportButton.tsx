@@ -17,6 +17,7 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
   buttonClassName 
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   // 16:9 (1920x1080) に収めるための設定
@@ -44,8 +45,10 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
       });
 
       const pageElements = printRef.current.children;
+      const totalPages = pageElements.length;
+      setProgress({ current: 0, total: totalPages });
       
-      for (let i = 0; i < pageElements.length; i++) {
+      for (let i = 0; i < totalPages; i++) {
         const pageEl = pageElements[i] as HTMLElement;
         
         // Canvas生成
@@ -64,6 +67,11 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
 
         if (i > 0) pdf.addPage();
         pdf.addImage(imgData, 'JPEG', 0, 0, 1920, 1080);
+        
+        // Update progress
+        setProgress({ current: i + 1, total: totalPages });
+        // UI更新のために少し待機
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
 
       pdf.save(`seo-rank-report-${new Date().toISOString().split('T')[0]}.pdf`);
@@ -72,6 +80,7 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
       alert('PDF出力中にエラーが発生しました。');
     } finally {
       setIsGenerating(false);
+      setProgress(null);
     }
   };
 
@@ -87,7 +96,9 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
         ) : (
           <FileDown size={18} />
         )}
-        {isGenerating ? '出力中...' : 'PDF出力'}
+        {isGenerating ? (
+          progress ? `出力中 (${progress.current}/${progress.total})` : '準備中...'
+        ) : 'PDF出力'}
       </button>
 
       {/* PDF生成用隠しレンダリングエリア */}
