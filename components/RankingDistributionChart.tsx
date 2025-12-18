@@ -88,13 +88,19 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
               itemSorter={(item) => RANGES.findIndex(r => r.key === item.dataKey)}
             />
             <Legend 
-              wrapperStyle={{ paddingTop: '20px' }} 
-              payload={RANGES.map(r => ({
-                value: r.label,
-                type: 'square',
-                id: r.key,
-                color: r.color
-              })) as any}
+              content={
+                <ul className="flex flex-wrap justify-center gap-4 pt-5">
+                  {RANGES.map((entry) => (
+                    <li key={entry.key} className="flex items-center text-sm text-gray-600">
+                      <span 
+                        className="w-3 h-3 mr-2 inline-block" 
+                        style={{ backgroundColor: entry.color }}
+                      />
+                      {entry.label}
+                    </li>
+                  ))}
+                </ul>
+              }
             />
             {[...RANGES].reverse().map((range) => (
               <Bar
