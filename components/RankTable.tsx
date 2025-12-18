@@ -16,7 +16,6 @@ export const RankTable: React.FC<RankTableProps> = ({
 }) => {
   const [sortField, setSortField] = useState<SortField>('position');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [filterText, setFilterText] = useState('');
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -27,43 +26,39 @@ export const RankTable: React.FC<RankTableProps> = ({
     }
   };
 
-  const sortedData = [...data]
-    .filter((item) =>
-      item.keyword.toLowerCase().includes(filterText.toLowerCase())
-    )
-    .sort((a, b) => {
-      let valA: any = '';
-      let valB: any = '';
+  const sortedData = [...data].sort((a, b) => {
+    let valA: any = '';
+    let valB: any = '';
 
-      switch (sortField) {
-        case 'keyword':
-          valA = a.keyword;
-          valB = b.keyword;
-          break;
-        case 'volume':
-          valA = a.volume;
-          valB = b.volume;
-          // Volume usually desc is better
-          break;
-        case 'position':
-          // Nulls should be at bottom usually
-          valA = a.latestPosition ?? 999;
-          valB = b.latestPosition ?? 999;
-          break;
-        case 'diff':
-          valA = a.latestDiff ?? 0;
-          valB = b.latestDiff ?? 0;
-          break;
-      }
+    switch (sortField) {
+      case 'keyword':
+        valA = a.keyword;
+        valB = b.keyword;
+        break;
+      case 'volume':
+        valA = a.volume;
+        valB = b.volume;
+        // Volume usually desc is better
+        break;
+      case 'position':
+        // Nulls should be at bottom usually
+        valA = a.latestPosition ?? 999;
+        valB = b.latestPosition ?? 999;
+        break;
+      case 'diff':
+        valA = a.latestDiff ?? 0;
+        valB = b.latestDiff ?? 0;
+        break;
+    }
 
-      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
+    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const getDiffIcon = (diff: number | null) => {
     if (diff === null || diff === 0) return <Minus className="w-4 h-4 text-gray-400" />;
-    if (diff > 0) return <ArrowUp className="w-4 h-4 text-green-500" />; // Rank went up (number decreased, wait. Logic in parser: prev - current. If prev 10, cur 5, diff 5. Positive is Good)
+    if (diff > 0) return <ArrowUp className="w-4 h-4 text-green-500" />;
     return <ArrowDown className="w-4 h-4 text-red-500" />;
   };
 
@@ -81,16 +76,7 @@ export const RankTable: React.FC<RankTableProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-        <h2 className="text-lg font-semibold text-gray-800">キーワード一覧 ({sortedData.length})</h2>
-        <input
-          type="text"
-          placeholder="キーワードを検索..."
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
-        />
-      </div>
+      {/* 以前ここにあったヘッダー（検索ボックス）は親コンポーネントに移動しました */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -211,4 +197,3 @@ export const RankTable: React.FC<RankTableProps> = ({
     </div>
   );
 };
-
