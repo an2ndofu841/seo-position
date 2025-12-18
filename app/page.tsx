@@ -5,6 +5,7 @@ import { FileUpload } from '@/components/FileUpload';
 import { RankTable } from '@/components/RankTable';
 import { RankChart } from '@/components/RankChart';
 import { RankCard } from '@/components/RankCard';
+import { RankingDistributionChart } from '@/components/RankingDistributionChart';
 import { GroupManager } from '@/components/GroupManager';
 import { PdfExportButton } from '@/components/PdfExportButton';
 import { KeywordHistory, SortField, SortOrder, KeywordGroup } from '@/types';
@@ -13,9 +14,9 @@ import {
   saveRankingData, getRankingData, deleteRankingDataByMonth, deleteAllData,
   createGroup, deleteGroup, addKeywordsToGroup, removeKeywordsFromGroup, getGroups
 } from '@/app/actions';
-import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu } from 'lucide-react';
+import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu, PieChart } from 'lucide-react';
 
-type ViewMode = 'list' | 'grid';
+type ViewMode = 'list' | 'grid' | 'summary';
 
 export default function Home() {
   const [data, setData] = useState<KeywordHistory[]>([]);
@@ -360,6 +361,15 @@ export default function Home() {
                 <LayoutGrid size={18} />
                 パネル
               </button>
+              <button
+                onClick={() => setViewMode('summary')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  viewMode === 'summary' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <PieChart size={18} />
+                サマリー
+              </button>
              </div>
           </div>
         </div>
@@ -508,7 +518,7 @@ export default function Home() {
                   onSortChange={handleSortChange}
                 />
               </div>
-            ) : (
+            ) : viewMode === 'grid' ? (
               // --- GRID VIEW ---
               <div className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -531,6 +541,14 @@ export default function Home() {
                     </button>
                   </div>
                 )}
+              </div>
+            ) : (
+              // --- SUMMARY VIEW ---
+              <div className="space-y-6">
+                <RankingDistributionChart 
+                  data={filteredData} 
+                  allMonths={sortedMonthsForChart} 
+                />
               </div>
             )}
           </>
