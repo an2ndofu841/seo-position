@@ -94,7 +94,7 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
                 type: 'square',
                 id: r.key,
                 color: r.color
-              }))}
+              })) as any}
             />
             {[...RANGES].reverse().map((range) => (
               <Bar
