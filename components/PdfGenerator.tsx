@@ -89,7 +89,7 @@ export const PdfGenerator: React.FC<PdfGeneratorProps> = ({
               useCORS: true,
               logging: false,
               backgroundColor: '#ffffff',
-            });
+            } as any); // キャストして型エラーを回避
 
             const imgData = canvas.toDataURL('image/png');
             pdf.addImage(imgData, 'PNG', x, y, cardWidth, cardHeight);
