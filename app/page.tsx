@@ -7,8 +7,8 @@ import { RankChart } from '@/components/RankChart';
 import { RankCard } from '@/components/RankCard';
 import { KeywordHistory } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
-import { saveRankingData, getRankingData, deleteRankingDataByMonth } from '@/app/actions';
-import { LayoutGrid, List, BarChart2, Settings, Trash2 } from 'lucide-react';
+import { saveRankingData, getRankingData, deleteRankingDataByMonth, deleteAllData } from '@/app/actions';
+import { LayoutGrid, List, BarChart2, Settings, Trash2, AlertTriangle } from 'lucide-react';
 
 type ViewMode = 'list' | 'grid';
 
@@ -49,7 +49,7 @@ export default function Home() {
     data.forEach((item) => {
       Object.keys(item.history).forEach((m) => months.add(m));
     });
-    return Array.from(months).sort().reverse(); // Show latest first for management
+    return Array.from(months).sort().reverse();
   }, [data]);
 
   const sortedMonthsForChart = useMemo(() => {
@@ -80,7 +80,7 @@ export default function Home() {
   };
   
   const handleDeleteMonth = async (month: string) => {
-    if (!confirm(`${month} のデータを完全に削除しますか？この操作は取り消せません。`)) {
+    if (!confirm(`${month} のデータを完全に削除しますか？\nこの操作は取り消せません。`)) {
       return;
     }
     
@@ -94,6 +94,33 @@ export default function Home() {
       alert(`${month} のデータを削除しました。`);
     } catch (error: any) {
       console.error('Delete error:', error);
+      alert(`削除に失敗しました: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    // 1st Confirmation
+    if (!confirm('【警告】すべてのデータを削除しますか？\n登録されているキーワードと順位履歴がすべて消去されます。')) {
+      return;
+    }
+    // 2nd Confirmation
+    if (!confirm('本当に削除してよろしいですか？\nこの操作は絶対に取り消せません。')) {
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const result = await deleteAllData();
+      if (!result.success) {
+        throw new Error(result.error as string);
+      }
+      await fetchData();
+      alert('すべてのデータを削除しました。');
+      setShowAdmin(false);
+    } catch (error: any) {
+      console.error('Delete All error:', error);
       alert(`削除に失敗しました: ${error.message}`);
     } finally {
       setIsProcessing(false);
@@ -114,7 +141,6 @@ export default function Home() {
     });
   };
 
-  // Filtered Data
   const filteredData = useMemo(() => {
     let result = data;
     if (filterText) {
@@ -122,11 +148,9 @@ export default function Home() {
         item.keyword.toLowerCase().includes(filterText.toLowerCase())
       );
     }
-    // Sort by position (asc) by default for grid view consistency
     return result.sort((a, b) => (a.latestPosition ?? 999) - (b.latestPosition ?? 999));
   }, [data, filterText]);
 
-  // Chart Data for List View
   const listChartData = useMemo(() => {
     return data.filter((item) => selectedKeywords.includes(item.keyword));
   }, [data, selectedKeywords]);
@@ -176,34 +200,55 @@ export default function Home() {
           </div>
         </div>
         
-        {/* Admin Panel (Data Deletion) */}
+        {/* Admin Panel */}
         {showAdmin && (
-          <div className="bg-red-50 border border-red-200 p-4 rounded-lg animate-in fade-in slide-in-from-top-2">
-            <h3 className="text-sm font-bold text-red-800 mb-3 flex items-center gap-2">
-              <Trash2 size={16} />
-              データ削除
-            </h3>
-            <p className="text-xs text-red-600 mb-4">
-              指定した月のデータを一括削除します。この操作は取り消せません。
-            </p>
+          <div className="bg-red-50 border border-red-200 p-6 rounded-lg animate-in fade-in slide-in-from-top-2 space-y-6">
             
-            {allMonths.length === 0 ? (
-               <div className="text-sm text-gray-500">削除可能なデータがありません。</div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {allMonths.map((month) => (
-                  <button
-                    key={month}
-                    onClick={() => handleDeleteMonth(month)}
-                    disabled={isProcessing}
-                    className="flex items-center gap-2 px-3 py-2 bg-white border border-red-200 text-red-700 rounded text-sm hover:bg-red-100 transition-colors shadow-sm"
-                  >
-                    {month}
-                    <Trash2 size={14} />
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Monthly Deletion */}
+            <div>
+              <h3 className="text-sm font-bold text-red-800 mb-3 flex items-center gap-2">
+                <Trash2 size={16} />
+                月別データの削除
+              </h3>
+              <p className="text-xs text-red-600 mb-4">
+                指定した月のデータを削除します。キーワード自体は残ります。
+              </p>
+              
+              {allMonths.length === 0 ? (
+                 <div className="text-sm text-gray-500">削除可能なデータがありません。</div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {allMonths.map((month) => (
+                    <button
+                      key={month}
+                      onClick={() => handleDeleteMonth(month)}
+                      disabled={isProcessing}
+                      className="flex items-center gap-2 px-3 py-2 bg-white border border-red-200 text-red-700 rounded text-sm hover:bg-red-100 transition-colors shadow-sm"
+                    >
+                      {month}
+                      <Trash2 size={14} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Delete All Data */}
+            <div className="border-t border-red-200 pt-4 mt-4">
+               <h3 className="text-sm font-bold text-red-900 mb-3 flex items-center gap-2">
+                <AlertTriangle size={16} />
+                危険な操作
+              </h3>
+              <button
+                onClick={handleDeleteAll}
+                disabled={isProcessing}
+                className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-md text-sm font-bold hover:bg-red-700 transition-colors shadow-sm flex items-center justify-center gap-2"
+              >
+                すべてのデータを削除（初期化）
+                <Trash2 size={16} />
+              </button>
+            </div>
+
           </div>
         )}
 
@@ -244,7 +289,6 @@ export default function Home() {
             {viewMode === 'list' ? (
               // --- LIST VIEW ---
               <div className="space-y-6">
-                {/* Selected Keywords Chart */}
                 {selectedKeywords.length > 0 && (
                    <div className="space-y-2">
                     <div className="flex items-center gap-2 px-2">
@@ -255,7 +299,6 @@ export default function Home() {
                   </div>
                 )}
                 
-                {/* Table */}
                 <RankTable
                   data={filteredData}
                   selectedKeywords={selectedKeywords}
@@ -275,7 +318,6 @@ export default function Home() {
                   ))}
                 </div>
                 
-                {/* Load More Button */}
                 {filteredData.length > displayLimit && (
                   <div className="text-center pt-4">
                     <button

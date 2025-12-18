@@ -3,37 +3,84 @@
 import { createNoCookieClient } from '@/utils/supabase/server';
 import { KeywordHistory, MonthlyData, ParsedCsvData } from '@/types';
 
-// ... existing code ...
-
 // 指定した月のランキングデータを削除する
 export async function deleteRankingDataByMonth(monthStr: string) {
   try {
     const supabase = await createNoCookieClient();
     
     // monthStr format: YYYY-MM
-    // Create date range for the month
-    const startDate = `${monthStr}-01`;
-    // End date calculation is a bit complex in SQL, but since we store dates as YYYY-MM-01, 
-    // we can just delete records where ranking_date = startDate
-    
-    // Confirm format is correct
+    // Ensure we match the exact date format stored in DB: YYYY-MM-01
+    const targetDate = `${monthStr}-01`;
+
     if (!/^\d{4}-\d{2}$/.test(monthStr)) {
       throw new Error('Invalid date format. Use YYYY-MM');
     }
 
-    const { error } = await supabase
+    console.log(`Attempting to delete rankings for date: ${targetDate}`);
+
+    const { error, count } = await supabase
       .from('rankings')
-      .delete()
-      .eq('ranking_date', startDate);
+      .delete({ count: 'exact' }) // count records to verify deletion
+      .eq('ranking_date', targetDate);
 
     if (error) {
       console.error('Delete Error:', error);
       throw new Error(`Delete Failed: ${error.message}`);
     }
 
-    return { success: true };
+    console.log(`Deleted ${count} records.`);
+    
+    if (count === 0) {
+       // If exact match failed, try range query (just in case of timezone shift, though 'date' type shouldn't have it)
+       // But 'date' type in Postgres is strictly YYYY-MM-01. 
+       // If count is 0, it means no data found. Maybe the user sees data but date is different?
+       return { success: true, message: '削除対象のデータが見つかりませんでした。' };
+    }
+
+    return { success: true, count };
   } catch (error: any) {
     console.error('Server Action Error (deleteRankingDataByMonth):', error);
+    return { success: false, error: error.message || String(error) };
+  }
+}
+
+// 全データを削除する
+export async function deleteAllData() {
+  try {
+    const supabase = await createNoCookieClient();
+
+    // 1. Delete all rankings
+    const { error: rankError } = await supabase
+      .from('rankings')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows (using neq id dummy is a common trick if filtered delete is required, but here we want all)
+      // Actually, standard delete without where clause might be blocked by Supabase setting "Delete requires filter".
+      // Safe way is to delete by some condition that covers all.
+    
+    if (rankError) {
+      // If "Delete requires filter" is on, try deleting by date range or id is not null
+      const { error: rankErrorRetry } = await supabase
+        .from('rankings')
+        .delete()
+        .not('id', 'is', null);
+        
+      if (rankErrorRetry) throw rankErrorRetry;
+    }
+
+    // 2. Delete all keywords (Cascade delete should handle rankings but let's be explicit or just delete keywords)
+    const { error: kwdError } = await supabase
+      .from('keywords')
+      .delete()
+      .not('id', 'is', null);
+
+    if (kwdError) {
+      console.error('Delete All Keywords Error:', kwdError);
+      throw new Error(`Delete Keywords Failed: ${kwdError.message}`);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Server Action Error (deleteAllData):', error);
     return { success: false, error: error.message || String(error) };
   }
 }
@@ -42,7 +89,6 @@ export async function saveRankingData(data: ParsedCsvData[]) {
   try {
     const supabase = await createNoCookieClient();
     
-    // Check if client is initialized correctly
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       throw new Error('Supabase environment variables are missing on server.');
     }
