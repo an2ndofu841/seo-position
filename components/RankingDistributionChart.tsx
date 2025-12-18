@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import {
-  AreaChart,
-  Area,
+  ComposedChart,
+  Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -31,8 +32,10 @@ const RANGES = [
 
 export const RankingDistributionChart: React.FC<RankingDistributionChartProps> = ({ data, allMonths }) => {
   const chartData = useMemo(() => {
-    // 日付順にソート（古い順）
     const sortedMonths = [...allMonths].sort();
+    
+    // 積み上げ順序（下から）: 91-100 -> 81-90 -> ... -> 1-10
+    const reversedRanges = [...RANGES].reverse();
 
     return sortedMonths.map((month) => {
       const counts: Record<string, number> = {
@@ -48,6 +51,7 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
         range91_100: 0,
       };
 
+      // 1. 各ランク帯の個数を集計
       data.forEach((kwd) => {
         const pos = kwd.history[month]?.position;
         if (pos) {
@@ -58,9 +62,20 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
         }
       });
 
+      // 2. 累積値を計算（下から積み上げる順序で計算）
+      let cumulative = 0;
+      const cumValues: Record<string, number> = {};
+      
+      reversedRanges.forEach((range) => {
+        const val = counts[range.key];
+        cumulative += val;
+        cumValues[`cum_${range.key}`] = cumulative;
+      });
+
       return {
         name: month,
         ...counts,
+        ...cumValues,
       };
     });
   }, [data, allMonths]);
@@ -70,20 +85,29 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
   return (
     <div className="w-full bg-white p-6 rounded-lg shadow border border-gray-200">
       <h3 className="text-lg font-semibold mb-6 text-gray-800">
-        順位分布推移 (積み上げ面グラフ)
+        順位分布推移 (積み上げ棒グラフ)
       </h3>
       <div className="w-full h-[500px]">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-          <AreaChart
+          <ComposedChart
             data={chartData}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            barSize={40}
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="name" />
             <YAxis label={{ value: 'キーワード数', angle: -90, position: 'insideLeft' }} />
             <Tooltip 
-              cursor={{ stroke: '#666', strokeWidth: 1, strokeDasharray: '3 3' }}
+              cursor={{ fill: 'transparent' }}
               contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+              // ツールチップにはカウント値のみ表示（累積線は除外）
+              filterNull={true}
+              formatter={(value, name) => {
+                 // 累積値のLineのデータはツールチップに出さない
+                 if (typeof name === 'string' && name.startsWith('cum_')) return [null, null];
+                 return [value, name];
+              }}
+              // 並び順制御
               itemSorter={(item) => RANGES.findIndex(r => r.key === item.dataKey)}
             />
             <Legend 
@@ -101,23 +125,40 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
                 </ul>
               }
             />
+            
+            {/* 積み上げ棒グラフ */}
             {[...RANGES].reverse().map((range) => (
-              <Area
+              <Bar
                 key={range.key}
-                type="monotone"
                 dataKey={range.key}
                 name={range.label}
-                stackId="1"
-                stroke={range.color}
+                stackId="a"
                 fill={range.color}
-                fillOpacity={0.8}
                 animationDuration={1000}
               />
             ))}
-          </AreaChart>
+
+            {/* 境界線（点線） */}
+            {[...RANGES].reverse().map((range) => (
+              <Line
+                key={`line_${range.key}`}
+                type="monotone"
+                dataKey={`cum_${range.key}`}
+                stroke="#9ca3af" // 薄いグレー (gray-400)
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+                legendType="none" // 凡例に出さない
+                tooltipType="none" // ツールチップに出さない(Line側プロパティで指定できる場合があるが、Rechartsは一括制御が多い)
+                name={`cum_${range.key}`} // formatterで除外するためのキー
+              />
+            ))}
+
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
 };
-
