@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { KeywordHistory, SortField, SortOrder } from '../types';
-import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink, Crown } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankTableProps {
@@ -62,6 +62,14 @@ export const RankTable: React.FC<RankTableProps> = ({
     return <ArrowDown className="w-4 h-4 text-red-500" />;
   };
 
+  const getRankCrown = (rank: number | null) => {
+    if (!rank) return null;
+    if (rank === 1) return <Crown size={16} className="text-yellow-500 fill-yellow-500" />;
+    if (rank === 2) return <Crown size={16} className="text-gray-400 fill-gray-400" />;
+    if (rank === 3) return <Crown size={16} className="text-orange-500 fill-orange-500" />; 
+    return null;
+  };
+
   const getLatestUrl = (item: KeywordHistory) => {
     const dates = Object.keys(item.history).sort();
     if (dates.length === 0) return '';
@@ -118,6 +126,7 @@ export const RankTable: React.FC<RankTableProps> = ({
               const url = getLatestUrl(item);
               const ai = isAIOverview(item);
               const isSelected = selectedKeywords.includes(item.keyword);
+              const crown = getRankCrown(item.latestPosition);
 
               return (
                 <tr
@@ -139,6 +148,7 @@ export const RankTable: React.FC<RankTableProps> = ({
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center">
+                      {crown && <span className="mr-2">{crown}</span>}
                       <span className="text-sm font-medium text-gray-900">{item.keyword}</span>
                       {item.isNew && (
                         <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">

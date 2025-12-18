@@ -10,7 +10,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { KeywordHistory } from '../types';
-import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3 } from 'lucide-react';
+import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3, Crown } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankCardProps {
@@ -37,16 +37,28 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
     if (diff > 0) return <ArrowUp className="w-3 h-3 text-green-500" />;
     return <ArrowDown className="w-3 h-3 text-red-500" />;
   };
+  
+  const getRankCrown = (rank: number | null) => {
+    if (!rank) return null;
+    if (rank === 1) return <Crown size={16} className="text-yellow-500 fill-yellow-500" />;
+    if (rank === 2) return <Crown size={16} className="text-gray-400 fill-gray-400" />;
+    if (rank === 3) return <Crown size={16} className="text-orange-500 fill-orange-500" />; // Bronze
+    return null;
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col h-[220px] hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1 min-w-0 pr-2">
-          <h3 className="text-sm font-bold text-gray-800 truncate" title={data.keyword}>
-            {data.keyword}
-          </h3>
-          <div className="flex items-center justify-between mt-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+             {getRankCrown(data.latestPosition)}
+             <h3 className="text-sm font-bold text-gray-800 truncate flex-1" title={data.keyword}>
+               {data.keyword}
+             </h3>
+          </div>
+          
+          <div className="flex items-center justify-between mt-1 pl-0.5">
              <div className="flex items-center gap-2">
                <div className="text-2xl font-bold text-gray-900 leading-none">
                 {data.latestPosition ?? '-'}
