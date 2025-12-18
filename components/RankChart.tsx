@@ -8,6 +8,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ReferenceLine,
 } from 'recharts';
 import { KeywordHistory } from '../types';
 
@@ -45,14 +46,24 @@ export const RankChart: React.FC<RankChartProps> = ({ data, allMonths }) => {
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
-          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
         >
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="name" />
-          <YAxis reversed domain={[1, 'auto']} allowDecimals={false} />
+          {/* Y軸を1位〜100位に固定 */}
+          <YAxis 
+            reversed 
+            domain={[1, 100]} 
+            allowDecimals={false} 
+            tickCount={6} // 1, 20, 40, 60, 80, 100
+          />
+          {/* 10位のボーダーライン */}
+          <ReferenceLine y={10} stroke="red" strokeDasharray="3 3" label={{ value: "10位", position: "insideTopLeft", fontSize: 10, fill: "red" }} />
+          
           <Tooltip 
             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
             itemSorter={(item) => (item.value as number)}
+            formatter={(value: any) => [`${value}位`]}
           />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
           {data.map((kwd, index) => (
@@ -65,7 +76,7 @@ export const RankChart: React.FC<RankChartProps> = ({ data, allMonths }) => {
               strokeWidth={2}
               dot={{ r: 3 }}
               activeDot={{ r: 6 }}
-              isAnimationActive={false} // パフォーマンス向上のためアニメーションオフ
+              isAnimationActive={false} 
             />
           ))}
         </LineChart>

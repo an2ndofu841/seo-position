@@ -6,6 +6,8 @@ import {
   YAxis,
   ResponsiveContainer,
   Tooltip,
+  CartesianGrid,
+  ReferenceLine,
 } from 'recharts';
 import { KeywordHistory } from '../types';
 import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus } from 'lucide-react';
@@ -71,18 +73,26 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
       </div>
 
       {/* Mini Chart */}
-      <div className="flex-1 w-full min-h-0">
+      <div className="flex-1 w-full min-h-0 relative">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
+          <LineChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
             <XAxis 
               dataKey="name" 
               hide 
             />
             <YAxis 
               reversed 
-              hide 
-              domain={[1, 'auto']} 
+              domain={[1, 100]} 
+              hide={false}
+              width={25}
+              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              tickCount={3} // 1, 50, 100 roughly
+              interval="preserveStartEnd"
             />
+            {/* 10位のラインを目立たせる */}
+            <ReferenceLine y={10} stroke="#e5e7eb" strokeDasharray="3 3" />
+            
             <Tooltip 
               contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
               labelStyle={{ display: 'none' }}
