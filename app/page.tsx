@@ -4,10 +4,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { RankTable } from '@/components/RankTable';
 import { RankChart } from '@/components/RankChart';
+import { RankCard } from '@/components/RankCard'; // New component
 import { KeywordHistory } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
 import { saveRankingData, getRankingData } from '@/app/actions';
-import { BarChart2, CheckSquare, Square } from 'lucide-react';
+import { LayoutGrid, List, BarChart2 } from 'lucide-react';
+
+type ViewMode = 'list' | 'grid';
 
 export default function Home() {
   const [data, setData] = useState<KeywordHistory[]>([]);
@@ -15,9 +18,12 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  // フィルタリングとグラフ全表示用State
+  // View Control
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filterText, setFilterText] = useState('');
-  const [showAllFilteredInChart, setShowAllFilteredInChart] = useState(false);
+  
+  // Pagination / Limit for Grid View
+  const [displayLimit, setDisplayLimit] = useState(20);
 
   // Load data from server on mount
   useEffect(() => {
@@ -47,9 +53,7 @@ export default function Home() {
 
   const handleFileUpload = async (files: FileList) => {
     setIsProcessing(true);
-    
     try {
-      // Process files sequentially
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const { parsedData } = await parseCsvFile(file);
@@ -60,10 +64,8 @@ export default function Home() {
           throw new Error(`Failed to save data to database: ${result.error}`);
         }
       }
-      
       await fetchData();
       alert('データのアップロードと保存が完了しました。');
-      
     } catch (error: any) {
       console.error('Error processing files:', error);
       alert(`エラーが発生しました: ${error.message}`);
@@ -73,16 +75,11 @@ export default function Home() {
   };
 
   const handleToggleSelect = (keyword: string) => {
-    // 全表示モードのときは個別の選択操作を無効化、またはモードを解除する
-    if (showAllFilteredInChart) {
-      setShowAllFilteredInChart(false);
-    }
-
     setSelectedKeywords((prev) => {
       if (prev.includes(keyword)) {
         return prev.filter((k) => k !== keyword);
       } else {
-        if (prev.length >= 20) { // 少し上限を緩和
+        if (prev.length >= 20) {
           alert('手動選択できるキーワードは最大20個までです。');
           return prev;
         }
@@ -91,37 +88,57 @@ export default function Home() {
     });
   };
 
-  // フィルタリングされたデータ
+  // Filtered Data
   const filteredData = useMemo(() => {
-    if (!filterText) return data;
-    return data.filter((item) =>
-      item.keyword.toLowerCase().includes(filterText.toLowerCase())
-    );
+    let result = data;
+    if (filterText) {
+      result = data.filter((item) =>
+        item.keyword.toLowerCase().includes(filterText.toLowerCase())
+      );
+    }
+    // Sort by position (asc) by default for grid view consistency
+    return result.sort((a, b) => (a.latestPosition ?? 999) - (b.latestPosition ?? 999));
   }, [data, filterText]);
 
-  // チャート用データ
-  const chartData = useMemo(() => {
-    if (showAllFilteredInChart) {
-      // フィルタリング結果が多すぎる場合のガード
-      if (filteredData.length > 50) {
-        // ここでアラートを出すとレンダリング中に副作用になるので、UI側で制御するか、あるいはsliceする
-        return filteredData.slice(0, 50); 
-      }
-      return filteredData;
-    }
+  // Chart Data for List View
+  const listChartData = useMemo(() => {
     return data.filter((item) => selectedKeywords.includes(item.keyword));
-  }, [data, selectedKeywords, showAllFilteredInChart, filteredData]);
+  }, [data, selectedKeywords]);
 
   return (
     <main className="min-h-screen bg-gray-100 p-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">SEO Rank Visualizer</h1>
             <p className="text-gray-500 text-sm mt-1">
-              CSVデータをアップロードして、キーワード順位の推移を可視化します
+              キーワード順位の推移を可視化・分析
             </p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+             {/* View Mode Toggle */}
+             <div className="flex bg-gray-100 p-1 rounded-lg">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <List size={18} />
+                リスト
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <LayoutGrid size={18} />
+                パネル
+              </button>
+             </div>
           </div>
         </div>
 
@@ -134,72 +151,79 @@ export default function Home() {
           </div>
         )}
 
-        {/* Chart Area */}
-        {(selectedKeywords.length > 0 || showAllFilteredInChart) && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between px-2">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <BarChart2 className="w-5 h-5" />
-                グラフ表示
-                {showAllFilteredInChart && filteredData.length > 50 && (
-                  <span className="text-xs text-red-500 font-normal ml-2">
-                    ※表示数が多いため上位50件のみ表示しています
-                  </span>
-                )}
-              </h2>
+        {/* Controls (Search Filter) */}
+        {data.length > 0 && (
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="キーワードを検索..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+              />
+              <div className="absolute right-3 top-2.5 text-gray-400 text-xs">
+                {filteredData.length} 件
+              </div>
             </div>
-            <RankChart data={chartData} allMonths={allMonths} />
           </div>
         )}
 
-        {/* Table Area */}
+        {/* Content Area */}
         {isLoading ? (
            <div className="text-center py-20 text-gray-500">
             データを読み込み中...
           </div>
         ) : data.length > 0 ? (
-          <div className="space-y-4">
-            {/* Filter & Controls */}
-            <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
-              <div className="relative w-full sm:w-96">
-                <input
-                  type="text"
-                  placeholder="キーワードを検索..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
+          <>
+            {viewMode === 'list' ? (
+              // --- LIST VIEW ---
+              <div className="space-y-6">
+                {/* Selected Keywords Chart */}
+                {selectedKeywords.length > 0 && (
+                   <div className="space-y-2">
+                    <div className="flex items-center gap-2 px-2">
+                      <BarChart2 className="w-5 h-5 text-gray-600" />
+                      <h2 className="text-lg font-semibold text-gray-800">選択中キーワード比較</h2>
+                    </div>
+                    <RankChart data={listChartData} allMonths={allMonths} />
+                  </div>
+                )}
+                
+                {/* Table */}
+                <RankTable
+                  data={filteredData}
+                  selectedKeywords={selectedKeywords}
+                  onToggleSelect={handleToggleSelect}
                 />
-                <div className="absolute right-3 top-2.5 text-gray-400 text-xs">
-                  {filteredData.length} 件
-                </div>
               </div>
-
-              <button
-                onClick={() => {
-                  if (!showAllFilteredInChart && filteredData.length > 100) {
-                    if (!confirm(`現在の検索結果は ${filteredData.length} 件あります。すべてグラフに表示すると動作が重くなる可能性がありますが続行しますか？`)) {
-                      return;
-                    }
-                  }
-                  setShowAllFilteredInChart(!showAllFilteredInChart);
-                }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  showAllFilteredInChart
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {showAllFilteredInChart ? <CheckSquare size={18} /> : <Square size={18} />}
-                検索結果をすべてグラフに表示
-              </button>
-            </div>
-
-            <RankTable
-              data={filteredData} // フィルタ済みのデータを渡す
-              selectedKeywords={selectedKeywords}
-              onToggleSelect={handleToggleSelect}
-            />
-          </div>
+            ) : (
+              // --- GRID VIEW ---
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filteredData.slice(0, displayLimit).map((item) => (
+                    <RankCard 
+                      key={item.keyword} 
+                      data={item} 
+                      allMonths={allMonths} 
+                    />
+                  ))}
+                </div>
+                
+                {/* Load More Button */}
+                {filteredData.length > displayLimit && (
+                  <div className="text-center pt-4">
+                    <button
+                      onClick={() => setDisplayLimit((prev) => prev + 20)}
+                      className="px-6 py-2 bg-white border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors"
+                    >
+                      もっと表示する ({displayLimit} / {filteredData.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         ) : (
           !isProcessing && (
             <div className="text-center py-20 text-gray-400">
