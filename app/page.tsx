@@ -6,6 +6,7 @@ import { RankTable } from '@/components/RankTable';
 import { RankChart } from '@/components/RankChart';
 import { RankCard } from '@/components/RankCard';
 import { GroupManager } from '@/components/GroupManager';
+import { PdfExportButton } from '@/components/PdfExportButton';
 import { KeywordHistory, SortField, SortOrder, KeywordGroup } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
 import { 
@@ -327,9 +328,13 @@ export default function Home() {
                 </div>
               </div>
           
-              <div className="flex items-center gap-4">
-                 <button
-                   onClick={() => setShowAdmin(!showAdmin)}
+          <div className="flex items-center gap-4">
+             <PdfExportButton 
+               data={filteredData} 
+               allMonths={sortedMonthsForChart}
+             />
+             <button
+               onClick={() => setShowAdmin(!showAdmin)}
                    className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${showAdmin ? 'bg-gray-100 text-blue-600' : 'text-gray-400'}`}
                    title="データ管理"
                  >

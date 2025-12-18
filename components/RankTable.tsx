@@ -25,15 +25,11 @@ export const RankTable: React.FC<RankTableProps> = ({
   sortOrder = 'asc',
   onSortChange,
 }) => {
-  const [activeMenuKeyword, setActiveMenuKeyword] = useState<string | null>(null);
+  const [activePopoverKeyword, setActivePopoverKeyword] = useState<string | null>(null);
 
-  // Close menu when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = () => setActiveMenuKeyword(null);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
-
+  // Close popover when clicking outside is handled by CSS/Layout usually, 
+  // but for simple implementation we can use a backdrop or just rely on mouse leave
+  
   const handleHeaderClick = (field: SortField) => {
     if (onSortChange) {
       onSortChange(field);
@@ -121,7 +117,7 @@ export const RankTable: React.FC<RankTableProps> = ({
                 <tr
                   key={item.keyword}
                   className={clsx(
-                    'hover:bg-gray-50 transition-colors',
+                    'hover:bg-gray-50 transition-colors group/tr',
                     isSelected && 'bg-blue-50'
                   )}
                   onClick={() => onToggleSelect(item.keyword)}
@@ -201,49 +197,78 @@ export const RankTable: React.FC<RankTableProps> = ({
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveMenuKeyword(activeMenuKeyword === item.keyword ? null : item.keyword);
-                      }}
-                      className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
-                    >
-                      <MoreHorizontal size={16} />
-                    </button>
-                    
-                    {activeMenuKeyword === item.keyword && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-4 py-2 text-xs text-gray-500 font-semibold border-b border-gray-100">
-                          プレイリストに追加
-                        </div>
-                        {groups.length === 0 ? (
-                           <div className="px-4 py-2 text-xs text-gray-400">プレイリストがありません</div>
-                        ) : (
-                          groups.map(group => {
-                            const added = isInGroup(group.id);
-                            return (
-                              <button
-                                key={group.id}
-                                onClick={() => {
-                                  if (!added && item.id) {
-                                    onAddToGroup(group.id, item.id);
-                                    setActiveMenuKeyword(null);
-                                  }
-                                }}
-                                disabled={added}
-                                className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between ${
-                                  added ? 'text-gray-400 cursor-default' : 'text-gray-700 hover:bg-gray-50'
-                                }`}
-                              >
-                                <span className="truncate">{group.name}</span>
-                                {added && <Check size={14} />}
-                              </button>
-                            );
-                          })
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative group-row">
+                    {/* Add to Playlist Button - Show on Hover or when active */}
+                    <div className="relative inline-block">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActivePopoverKeyword(activePopoverKeyword === item.keyword ? null : item.keyword);
+                        }}
+                        className={clsx(
+                          "p-1.5 rounded-full transition-all duration-200 border",
+                          activePopoverKeyword === item.keyword 
+                            ? "bg-blue-100 text-blue-600 border-blue-200 opacity-100" 
+                            : "bg-white text-gray-400 border-gray-200 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover/tr:opacity-100"
                         )}
-                      </div>
-                    )}
+                        title="プレイリストに追加"
+                      >
+                        <Plus size={16} />
+                      </button>
+
+                      {/* Popover Menu */}
+                      {activePopoverKeyword === item.keyword && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActivePopoverKeyword(null);
+                            }} 
+                          />
+                          <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-200 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+                            <div className="px-3 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100 mb-1">
+                              プレイリストに追加
+                            </div>
+                            
+                            <div className="max-h-60 overflow-y-auto">
+                              {groups.length === 0 ? (
+                                <div className="px-4 py-3 text-sm text-gray-400 text-center italic">
+                                  プレイリストがありません
+                                </div>
+                              ) : (
+                                groups.map(group => {
+                                  const added = isInGroup(group.id);
+                                  return (
+                                    <button
+                                      key={group.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!added && item.id) {
+                                          onAddToGroup(group.id, item.id);
+                                          // Keep menu open to allow multiple selections or close it? 
+                                          // Usually close is better UX for single action, but toggle might be better.
+                                          // For now, let's close it to show feedback.
+                                          setActivePopoverKeyword(null);
+                                        }
+                                      }}
+                                      disabled={added}
+                                      className={clsx(
+                                        "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors",
+                                        added ? "text-blue-600 bg-blue-50 cursor-default" : "text-gray-700 hover:bg-gray-50"
+                                      )}
+                                    >
+                                      <span className="truncate font-medium">{group.name}</span>
+                                      {added && <Check size={16} className="shrink-0" />}
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
