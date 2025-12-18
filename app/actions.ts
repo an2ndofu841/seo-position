@@ -3,6 +3,41 @@
 import { createNoCookieClient } from '@/utils/supabase/server';
 import { KeywordHistory, MonthlyData, ParsedCsvData } from '@/types';
 
+// ... existing code ...
+
+// 指定した月のランキングデータを削除する
+export async function deleteRankingDataByMonth(monthStr: string) {
+  try {
+    const supabase = await createNoCookieClient();
+    
+    // monthStr format: YYYY-MM
+    // Create date range for the month
+    const startDate = `${monthStr}-01`;
+    // End date calculation is a bit complex in SQL, but since we store dates as YYYY-MM-01, 
+    // we can just delete records where ranking_date = startDate
+    
+    // Confirm format is correct
+    if (!/^\d{4}-\d{2}$/.test(monthStr)) {
+      throw new Error('Invalid date format. Use YYYY-MM');
+    }
+
+    const { error } = await supabase
+      .from('rankings')
+      .delete()
+      .eq('ranking_date', startDate);
+
+    if (error) {
+      console.error('Delete Error:', error);
+      throw new Error(`Delete Failed: ${error.message}`);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Server Action Error (deleteRankingDataByMonth):', error);
+    return { success: false, error: error.message || String(error) };
+  }
+}
+
 export async function saveRankingData(data: ParsedCsvData[]) {
   try {
     const supabase = await createNoCookieClient();

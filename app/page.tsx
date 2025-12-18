@@ -4,11 +4,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { RankTable } from '@/components/RankTable';
 import { RankChart } from '@/components/RankChart';
-import { RankCard } from '@/components/RankCard'; // New component
+import { RankCard } from '@/components/RankCard';
 import { KeywordHistory } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
-import { saveRankingData, getRankingData } from '@/app/actions';
-import { LayoutGrid, List, BarChart2 } from 'lucide-react';
+import { saveRankingData, getRankingData, deleteRankingDataByMonth } from '@/app/actions';
+import { LayoutGrid, List, BarChart2, Settings, Trash2 } from 'lucide-react';
 
 type ViewMode = 'list' | 'grid';
 
@@ -21,6 +21,7 @@ export default function Home() {
   // View Control
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filterText, setFilterText] = useState('');
+  const [showAdmin, setShowAdmin] = useState(false); // Admin panel toggle
   
   // Pagination / Limit for Grid View
   const [displayLimit, setDisplayLimit] = useState(20);
@@ -48,8 +49,12 @@ export default function Home() {
     data.forEach((item) => {
       Object.keys(item.history).forEach((m) => months.add(m));
     });
-    return Array.from(months).sort();
+    return Array.from(months).sort().reverse(); // Show latest first for management
   }, [data]);
+
+  const sortedMonthsForChart = useMemo(() => {
+     return [...allMonths].sort();
+  }, [allMonths]);
 
   const handleFileUpload = async (files: FileList) => {
     setIsProcessing(true);
@@ -69,6 +74,27 @@ export default function Home() {
     } catch (error: any) {
       console.error('Error processing files:', error);
       alert(`エラーが発生しました: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  const handleDeleteMonth = async (month: string) => {
+    if (!confirm(`${month} のデータを完全に削除しますか？この操作は取り消せません。`)) {
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      const result = await deleteRankingDataByMonth(month);
+      if (!result.success) {
+        throw new Error(result.error as string);
+      }
+      await fetchData();
+      alert(`${month} のデータを削除しました。`);
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      alert(`削除に失敗しました: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -118,6 +144,14 @@ export default function Home() {
           </div>
           
           <div className="flex items-center gap-4">
+             <button
+               onClick={() => setShowAdmin(!showAdmin)}
+               className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${showAdmin ? 'bg-gray-100 text-blue-600' : 'text-gray-400'}`}
+               title="データ管理"
+             >
+               <Settings size={20} />
+             </button>
+          
              {/* View Mode Toggle */}
              <div className="flex bg-gray-100 p-1 rounded-lg">
               <button
@@ -141,13 +175,44 @@ export default function Home() {
              </div>
           </div>
         </div>
+        
+        {/* Admin Panel (Data Deletion) */}
+        {showAdmin && (
+          <div className="bg-red-50 border border-red-200 p-4 rounded-lg animate-in fade-in slide-in-from-top-2">
+            <h3 className="text-sm font-bold text-red-800 mb-3 flex items-center gap-2">
+              <Trash2 size={16} />
+              データ削除
+            </h3>
+            <p className="text-xs text-red-600 mb-4">
+              指定した月のデータを一括削除します。この操作は取り消せません。
+            </p>
+            
+            {allMonths.length === 0 ? (
+               <div className="text-sm text-gray-500">削除可能なデータがありません。</div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {allMonths.map((month) => (
+                  <button
+                    key={month}
+                    onClick={() => handleDeleteMonth(month)}
+                    disabled={isProcessing}
+                    className="flex items-center gap-2 px-3 py-2 bg-white border border-red-200 text-red-700 rounded text-sm hover:bg-red-100 transition-colors shadow-sm"
+                  >
+                    {month}
+                    <Trash2 size={14} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Upload Area */}
         <FileUpload onFileUpload={handleFileUpload} />
         
         {isProcessing && (
           <div className="text-center text-blue-600 py-4 font-medium animate-pulse">
-            データをSupabaseに保存中...
+            処理中...
           </div>
         )}
 
@@ -186,7 +251,7 @@ export default function Home() {
                       <BarChart2 className="w-5 h-5 text-gray-600" />
                       <h2 className="text-lg font-semibold text-gray-800">選択中キーワード比較</h2>
                     </div>
-                    <RankChart data={listChartData} allMonths={allMonths} />
+                    <RankChart data={listChartData} allMonths={sortedMonthsForChart} />
                   </div>
                 )}
                 
@@ -205,7 +270,7 @@ export default function Home() {
                     <RankCard 
                       key={item.keyword} 
                       data={item} 
-                      allMonths={allMonths} 
+                      allMonths={sortedMonthsForChart} 
                     />
                   ))}
                 </div>
