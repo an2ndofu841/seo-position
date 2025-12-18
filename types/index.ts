@@ -14,12 +14,13 @@ export interface MonthlyData {
 }
 
 export interface KeywordHistory {
+  id?: string; // DB ID needed for grouping
   keyword: string;
   volume: number;
   history: { [monthKey: string]: MonthlyData };
   latestPosition: number | null;
   latestDiff: number | null;
-  isNew?: boolean; // 新規キーワードフラグ
+  isNew?: boolean; 
 }
 
 export interface ParsedCsvData {
@@ -29,6 +30,12 @@ export interface ParsedCsvData {
   url: string;
   isAIOverview: boolean;
   dateStr: string; // YYYY-MM
+}
+
+export interface KeywordGroup {
+  id: string;
+  name: string;
+  keywords: string[]; // List of keyword strings (or IDs, but strings are easier for frontend filtering currently)
 }
 
 export type SortField = 'keyword' | 'volume' | 'position' | 'diff';

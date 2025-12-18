@@ -1,9 +1,116 @@
 'use server';
 
 import { createNoCookieClient } from '@/utils/supabase/server';
-import { KeywordHistory, MonthlyData, ParsedCsvData } from '@/types';
+import { KeywordHistory, MonthlyData, ParsedCsvData, KeywordGroup } from '@/types';
 
-// 指定した月のランキングデータを削除する
+// --- Group Actions ---
+
+export async function createGroup(name: string) {
+  try {
+    const supabase = await createNoCookieClient();
+    const { data, error } = await supabase
+      .from('groups')
+      .insert({ name })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Create Group Error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteGroup(groupId: string) {
+  try {
+    const supabase = await createNoCookieClient();
+    const { error } = await supabase
+      .from('groups')
+      .delete()
+      .eq('id', groupId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    console.error('Delete Group Error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function addKeywordsToGroup(groupId: string, keywordIds: string[]) {
+  try {
+    const supabase = await createNoCookieClient();
+    const rows = keywordIds.map(kid => ({
+      group_id: groupId,
+      keyword_id: kid
+    }));
+
+    const { error } = await supabase
+      .from('keyword_groups')
+      .upsert(rows, { onConflict: 'group_id, keyword_id' });
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    console.error('Add Keywords Error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function removeKeywordsFromGroup(groupId: string, keywordIds: string[]) {
+  try {
+    const supabase = await createNoCookieClient();
+    const { error } = await supabase
+      .from('keyword_groups')
+      .delete()
+      .eq('group_id', groupId)
+      .in('keyword_id', keywordIds);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    console.error('Remove Keywords Error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getGroups(): Promise<KeywordGroup[]> {
+  try {
+    const supabase = await createNoCookieClient();
+    // Get groups and their keywords
+    const { data, error } = await supabase
+      .from('groups')
+      .select(`
+        id,
+        name,
+        keyword_groups (
+          keyword_id,
+          keywords (
+            keyword
+          )
+        )
+      `);
+
+    if (error) throw error;
+    if (!data) return [];
+
+    return data.map((g: any) => ({
+      id: g.id,
+      name: g.name,
+      // Map joined data to simple string array of keywords for filtering
+      keywords: g.keyword_groups
+        .map((kg: any) => kg.keywords?.keyword)
+        .filter((k: any) => k !== null)
+    }));
+  } catch (error) {
+    console.error('Get Groups Error:', error);
+    return [];
+  }
+}
+
+// --- Existing Actions ---
+
 export async function deleteRankingDataByMonth(monthStr: string) {
   try {
     const supabase = await createNoCookieClient();
@@ -27,9 +134,6 @@ export async function deleteRankingDataByMonth(monthStr: string) {
 
     console.log(`Deleted ${count} records.`);
     
-    // RLSなどでブロックされた場合もcountは0になる可能性がある
-    // 実際にデータがあるはずなのに0だった場合はエラーとみなす
-    // ただし、「本当にデータがない」場合との区別がつかないが、UI上はボタンがある＝データがあるはず
     if (count === 0) {
        return { success: false, error: '削除対象が見つからないか、削除権限がありません(RLSポリシーを確認してください)。' };
     }
@@ -41,14 +145,10 @@ export async function deleteRankingDataByMonth(monthStr: string) {
   }
 }
 
-// 全データを削除する
 export async function deleteAllData() {
   try {
     const supabase = await createNoCookieClient();
 
-    // 1. Delete all rankings
-    // Supabase (PostgREST) requires a filter for delete unless configured otherwise.
-    // Use a filter that is always true like "id is not null"
     const { error: rankError, count: rankCount } = await supabase
       .from('rankings')
       .delete({ count: 'exact' })
@@ -58,7 +158,6 @@ export async function deleteAllData() {
        throw new Error(`Ranking Delete Failed: ${rankError.message}`);
     }
 
-    // 2. Delete all keywords
     const { error: kwdError, count: kwdCount } = await supabase
       .from('keywords')
       .delete({ count: 'exact' })
@@ -69,8 +168,6 @@ export async function deleteAllData() {
     }
 
     if (rankCount === 0 && kwdCount === 0) {
-        // Maybe already empty, or RLS blocked it
-        // We can check if any data exists to distinguish
         const { count: checkCount } = await supabase.from('keywords').select('*', { count: 'exact', head: true });
         if (checkCount && checkCount > 0) {
             return { success: false, error: '削除権限がありません(RLSポリシーを確認してください)。' };
@@ -92,7 +189,6 @@ export async function saveRankingData(data: ParsedCsvData[]) {
       throw new Error('Supabase environment variables are missing on server.');
     }
 
-    // 1. Upsert Keywords
     const uniqueKeywords = Array.from(new Map(data.map(item => [item.keyword, item])).values());
     
     const keywordUpsertData = uniqueKeywords.map(item => ({
@@ -114,7 +210,6 @@ export async function saveRankingData(data: ParsedCsvData[]) {
     const keywordIdMap = new Map<string, string>();
     keywordResults?.forEach(k => keywordIdMap.set(k.keyword, k.id));
 
-    // 2. Upsert Rankings
     const rankingUpsertData = data.map(item => {
       const keywordId = keywordIdMap.get(item.keyword);
       if (!keywordId) return null;
@@ -213,6 +308,7 @@ export async function getRankingData(): Promise<KeywordHistory[]> {
       }
 
       return {
+        id: k.id, // Add ID
         keyword: k.keyword,
         volume: k.volume,
         history,

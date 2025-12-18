@@ -5,16 +5,21 @@ import { FileUpload } from '@/components/FileUpload';
 import { RankTable } from '@/components/RankTable';
 import { RankChart } from '@/components/RankChart';
 import { RankCard } from '@/components/RankCard';
-import { KeywordHistory, SortField, SortOrder } from '@/types';
+import { GroupManager } from '@/components/GroupManager';
+import { KeywordHistory, SortField, SortOrder, KeywordGroup } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
-import { saveRankingData, getRankingData, deleteRankingDataByMonth, deleteAllData } from '@/app/actions';
-import { LayoutGrid, List, BarChart2, Settings, Trash2, AlertTriangle, ArrowUpDown } from 'lucide-react';
+import { 
+  saveRankingData, getRankingData, deleteRankingDataByMonth, deleteAllData,
+  createGroup, deleteGroup, addKeywordsToGroup, removeKeywordsFromGroup, getGroups
+} from '@/app/actions';
+import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown } from 'lucide-react';
 
 type ViewMode = 'list' | 'grid';
 
 export default function Home() {
   const [data, setData] = useState<KeywordHistory[]>([]);
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
+  const [groups, setGroups] = useState<KeywordGroup[]>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]); // For chart comparison or group actions
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -23,6 +28,10 @@ export default function Home() {
   const [filterText, setFilterText] = useState('');
   const [showAdmin, setShowAdmin] = useState(false);
   
+  // Group Control
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null); // null means "All"
+  const [newGroupName, setNewGroupName] = useState('');
+
   // Sorting Control
   const [sortField, setSortField] = useState<SortField>('position');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -38,8 +47,12 @@ export default function Home() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const serverData = await getRankingData();
+      const [serverData, groupsData] = await Promise.all([
+        getRankingData(),
+        getGroups()
+      ]);
       setData(serverData);
+      setGroups(groupsData);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -58,6 +71,8 @@ export default function Home() {
   const sortedMonthsForChart = useMemo(() => {
      return [...allMonths].sort();
   }, [allMonths]);
+
+  // --- Actions ---
 
   const handleFileUpload = async (files: FileList, dateOverride?: string) => {
     if (dateOverride === '') { }
@@ -113,13 +128,88 @@ export default function Home() {
     }
   };
 
+  // Group Actions
+  const handleCreateGroup = async (name?: string) => {
+    const targetName = name || newGroupName;
+    if (!targetName?.trim()) return;
+    
+    setIsProcessing(true);
+    try {
+      const result = await createGroup(targetName);
+      if (!result.success) throw new Error(result.error);
+      setNewGroupName('');
+      // Refresh groups
+      const newGroups = await getGroups();
+      setGroups(newGroups);
+    } catch (error: any) {
+      alert(`作成失敗: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    if (!confirm('このグループを削除しますか？（キーワード自体は削除されません）')) return;
+    setIsProcessing(true);
+    try {
+      const result = await deleteGroup(groupId);
+      if (!result.success) throw new Error(result.error);
+      if (selectedGroupId === groupId) setSelectedGroupId(null);
+      const newGroups = await getGroups();
+      setGroups(newGroups);
+    } catch (error: any) {
+      alert(`削除失敗: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAddToGroup = async (groupId: string) => {
+    if (selectedKeywords.length === 0) return;
+    
+    // Find IDs for selected keywords
+    const targetIds = data
+      .filter(d => selectedKeywords.includes(d.keyword))
+      .map(d => d.id)
+      .filter((id): id is string => !!id);
+
+    if (targetIds.length === 0) return;
+
+    setIsProcessing(true);
+    try {
+      const result = await addKeywordsToGroup(groupId, targetIds);
+      if (!result.success) throw new Error(result.error);
+      alert(`${targetIds.length}個のキーワードをグループに追加しました。`);
+      const newGroups = await getGroups();
+      setGroups(newGroups);
+      setSelectedKeywords([]); // Clear selection
+    } catch (error: any) {
+      alert(`追加失敗: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSingleAddToGroup = async (groupId: string, keywordId: string) => {
+    setIsProcessing(true);
+    try {
+      const result = await addKeywordsToGroup(groupId, [keywordId]);
+      if (!result.success) throw new Error(result.error);
+      
+      const newGroups = await getGroups();
+      setGroups(newGroups);
+    } catch (error: any) {
+      alert(`追加失敗: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // UI Handlers
   const handleToggleSelect = (keyword: string) => {
     setSelectedKeywords((prev) => {
       if (prev.includes(keyword)) return prev.filter((k) => k !== keyword);
-      if (prev.length >= 20) {
-        alert('手動選択できるキーワードは最大20個までです。');
-        return prev;
-      }
+      // Removed selection limit for group operations
       return [...prev, keyword];
     });
   };
@@ -137,14 +227,26 @@ export default function Home() {
     }
   };
 
+  // Filtering Logic
   const filteredData = useMemo(() => {
     let result = [...data];
+    
+    // 1. Group Filter
+    if (selectedGroupId) {
+      const group = groups.find(g => g.id === selectedGroupId);
+      if (group) {
+        result = result.filter(item => group.keywords.includes(item.keyword));
+      }
+    }
+
+    // 2. Text Filter
     if (filterText) {
       result = result.filter((item) =>
         item.keyword.toLowerCase().includes(filterText.toLowerCase())
       );
     }
     
+    // 3. Sort
     result.sort((a, b) => {
       let valA: any = '';
       let valB: any = '';
@@ -174,17 +276,32 @@ export default function Home() {
     });
 
     return result;
-  }, [data, filterText, sortField, sortOrder]);
+  }, [data, filterText, sortField, sortOrder, selectedGroupId, groups]);
 
   const listChartData = useMemo(() => {
-    return data.filter((item) => selectedKeywords.includes(item.keyword));
+    // If keywords selected manually, show them
+    if (selectedKeywords.length > 0) {
+      return data.filter((item) => selectedKeywords.includes(item.keyword));
+    }
+    // Otherwise show top of filtered list (if reasonable size)
+    return [];
   }, [data, selectedKeywords]);
 
   return (
-    <main className="min-h-screen bg-gray-100 p-8 font-sans">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
+    <main className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+      <GroupManager 
+        groups={groups}
+        selectedGroupId={selectedGroupId}
+        onSelectGroup={setSelectedGroupId}
+        onCreateGroup={handleCreateGroup}
+        onDeleteGroup={handleDeleteGroup}
+      />
+      
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">SEO Rank Visualizer</h1>
             <p className="text-gray-500 text-sm mt-1">
@@ -224,7 +341,7 @@ export default function Home() {
           </div>
         </div>
         
-        {/* Admin Panel */}
+        {/* Admin Panel ... */}
         {showAdmin && (
           <div className="bg-red-50 border border-red-200 p-6 rounded-lg animate-in fade-in slide-in-from-top-2 space-y-6">
             <div>
@@ -232,9 +349,6 @@ export default function Home() {
                 <Trash2 size={16} />
                 月別データの削除
               </h3>
-              <p className="text-xs text-red-600 mb-4">
-                指定した月のデータを削除します。キーワード自体は残ります。
-              </p>
               {allMonths.length === 0 ? (
                  <div className="text-sm text-gray-500">削除可能なデータがありません。</div>
               ) : (
@@ -254,11 +368,7 @@ export default function Home() {
               )}
             </div>
             <div className="border-t border-red-200 pt-4 mt-4">
-               <h3 className="text-sm font-bold text-red-900 mb-3 flex items-center gap-2">
-                <AlertTriangle size={16} />
-                危険な操作
-              </h3>
-              <button
+               <button
                 onClick={handleDeleteAll}
                 disabled={isProcessing}
                 className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-md text-sm font-bold hover:bg-red-700 transition-colors shadow-sm flex items-center justify-center gap-2"
@@ -279,43 +389,67 @@ export default function Home() {
           </div>
         )}
 
-        {/* Controls */}
+        {/* Group & Controls */}
         {data.length > 0 && (
-          <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
-            {/* Search - Text color fixed here */}
-            <div className="relative w-full sm:w-auto flex-1">
-              <input
-                type="text"
-                placeholder="キーワードを検索..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-              />
-              <div className="absolute right-3 top-2.5 text-gray-400 text-xs">
-                {filteredData.length} 件
+          <div className="space-y-4">
+            {/* Filter & Sort Controls */}
+            <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col lg:flex-row gap-4 justify-between items-center">
+              {/* Search */}
+              <div className="relative w-full lg:w-auto flex-1 max-w-md">
+                <input
+                  type="text"
+                  placeholder="キーワードを検索..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                />
+                <div className="absolute right-3 top-2.5 text-gray-400 text-xs">
+                  {filteredData.length} 件
+                </div>
               </div>
-            </div>
 
-            {/* Sort Control */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-sm text-gray-500 whitespace-nowrap">並び順:</span>
-              <select
-                value={sortField}
-                onChange={(e) => handleSortChange(e.target.value as SortField)}
-                className="block w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 text-gray-900 bg-white"
-              >
-                <option value="position">順位</option>
-                <option value="volume">ボリューム</option>
-                <option value="diff">変動幅</option>
-                <option value="keyword">キーワード</option>
-              </select>
-              <button
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600"
-                title={sortOrder === 'asc' ? "昇順" : "降順"}
-              >
-                <ArrowUpDown size={16} className={sortOrder === 'asc' ? "" : "transform rotate-180"} />
-              </button>
+              <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto justify-end">
+                {/* Group Action for Selection */}
+                {selectedKeywords.length > 0 && groups.length > 0 && (
+                  <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                    <span className="text-sm text-gray-600">{selectedKeywords.length}件選択中:</span>
+                    <select 
+                      className="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      onChange={(e) => {
+                        if (e.target.value) handleAddToGroup(e.target.value);
+                      }}
+                      value=""
+                    >
+                      <option value="" disabled>グループに追加...</option>
+                      {groups.map(g => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Sort Control */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500 whitespace-nowrap">並び順:</span>
+                  <select
+                    value={sortField}
+                    onChange={(e) => handleSortChange(e.target.value as SortField)}
+                    className="block px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 text-gray-900 bg-white"
+                  >
+                    <option value="position">順位</option>
+                    <option value="volume">ボリューム</option>
+                    <option value="diff">変動幅</option>
+                    <option value="keyword">キーワード</option>
+                  </select>
+                  <button
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600"
+                    title={sortOrder === 'asc' ? "昇順" : "降順"}
+                  >
+                    <ArrowUpDown size={16} className={sortOrder === 'asc' ? "" : "transform rotate-180"} />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -342,8 +476,10 @@ export default function Home() {
                 
                 <RankTable
                   data={filteredData}
+                  groups={groups}
                   selectedKeywords={selectedKeywords}
                   onToggleSelect={handleToggleSelect}
+                  onAddToGroup={handleSingleAddToGroup}
                   sortField={sortField}
                   sortOrder={sortOrder}
                   onSortChange={handleSortChange}
@@ -380,8 +516,8 @@ export default function Home() {
             <div className="text-center py-20 text-gray-400">
               データがありません。CSVファイルをアップロードしてください。
             </div>
-          )
-        )}
+          </div>
+        </div>
       </div>
     </main>
   );

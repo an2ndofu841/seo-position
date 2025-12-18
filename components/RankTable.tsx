@@ -1,12 +1,14 @@
-import React from 'react';
-import { KeywordHistory, SortField, SortOrder } from '../types';
-import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink, Crown } from 'lucide-react';
+import React, { useState } from 'react';
+import { KeywordHistory, SortField, SortOrder, KeywordGroup } from '../types';
+import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink, Crown, MoreHorizontal, Plus, Check } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankTableProps {
   data: KeywordHistory[];
+  groups: KeywordGroup[];
   selectedKeywords: string[];
   onToggleSelect: (keyword: string) => void;
+  onAddToGroup: (groupId: string, keywordId: string) => void;
   // Sorting props from parent
   sortField?: SortField;
   sortOrder?: SortOrder;
@@ -15,12 +17,23 @@ interface RankTableProps {
 
 export const RankTable: React.FC<RankTableProps> = ({
   data,
+  groups,
   selectedKeywords,
   onToggleSelect,
+  onAddToGroup,
   sortField = 'position',
   sortOrder = 'asc',
   onSortChange,
 }) => {
+  const [activeMenuKeyword, setActiveMenuKeyword] = useState<string | null>(null);
+
+  // Close menu when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = () => setActiveMenuKeyword(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
   const handleHeaderClick = (field: SortField) => {
     if (onSortChange) {
       onSortChange(field);
@@ -86,8 +99,8 @@ export const RankTable: React.FC<RankTableProps> = ({
               >
                 Volume {sortField === 'volume' && (sortOrder === 'asc' ? '▲' : '▼')}
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                URL / Info
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Action
               </th>
             </tr>
           </thead>
@@ -98,6 +111,11 @@ export const RankTable: React.FC<RankTableProps> = ({
               const isSelected = selectedKeywords.includes(item.keyword);
               const crown = getRankCrown(item.latestPosition);
               const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(item.keyword)}`;
+              
+              const isInGroup = (groupId: string) => {
+                const group = groups.find(g => g.id === groupId);
+                return group?.keywords.includes(item.keyword);
+              };
 
               return (
                 <tr
@@ -182,6 +200,50 @@ export const RankTable: React.FC<RankTableProps> = ({
                         </a>
                       )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuKeyword(activeMenuKeyword === item.keyword ? null : item.keyword);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                    >
+                      <MoreHorizontal size={16} />
+                    </button>
+                    
+                    {activeMenuKeyword === item.keyword && (
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-4 py-2 text-xs text-gray-500 font-semibold border-b border-gray-100">
+                          プレイリストに追加
+                        </div>
+                        {groups.length === 0 ? (
+                           <div className="px-4 py-2 text-xs text-gray-400">プレイリストがありません</div>
+                        ) : (
+                          groups.map(group => {
+                            const added = isInGroup(group.id);
+                            return (
+                              <button
+                                key={group.id}
+                                onClick={() => {
+                                  if (!added && item.id) {
+                                    onAddToGroup(group.id, item.id);
+                                    setActiveMenuKeyword(null);
+                                  }
+                                }}
+                                disabled={added}
+                                className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between ${
+                                  added ? 'text-gray-400 cursor-default' : 'text-gray-700 hover:bg-gray-50'
+                                }`}
+                              >
+                                <span className="truncate">{group.name}</span>
+                                {added && <Check size={14} />}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
