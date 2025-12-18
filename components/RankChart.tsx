@@ -43,11 +43,12 @@ export const RankChart: React.FC<RankChartProps> = ({ data, allMonths }) => {
       <h3 className="text-lg font-semibold mb-4 text-gray-800">
         順位推移 ({data.length} キーワード)
       </h3>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart
-          data={chartData}
-          margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-        >
+      <div className="w-full h-[calc(100%-3rem)] min-h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+          >
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="name" />
           {/* Y軸を1位〜100位に固定 */}
@@ -81,6 +82,7 @@ export const RankChart: React.FC<RankChartProps> = ({ data, allMonths }) => {
           ))}
         </LineChart>
       </ResponsiveContainer>
+    </div>
     </div>
   );
 };

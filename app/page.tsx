@@ -12,7 +12,7 @@ import {
   saveRankingData, getRankingData, deleteRankingDataByMonth, deleteAllData,
   createGroup, deleteGroup, addKeywordsToGroup, removeKeywordsFromGroup, getGroups
 } from '@/app/actions';
-import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown } from 'lucide-react';
+import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu } from 'lucide-react';
 
 type ViewMode = 'list' | 'grid';
 
@@ -27,11 +27,12 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filterText, setFilterText] = useState('');
   const [showAdmin, setShowAdmin] = useState(false);
-  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
   // Group Control
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null); // null means "All"
   const [newGroupName, setNewGroupName] = useState('');
-
+  
   // Sorting Control
   const [sortField, setSortField] = useState<SortField>('position');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -295,28 +296,45 @@ export default function Home() {
         onSelectGroup={setSelectedGroupId}
         onCreateGroup={handleCreateGroup}
         onDeleteGroup={handleDeleteGroup}
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">SEO Rank Visualizer</h1>
-            <p className="text-gray-500 text-sm mt-1">
-              キーワード順位の推移を可視化・分析
-            </p>
-          </div>
+              <div className="flex items-start gap-4">
+                <button 
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="p-2 rounded-md hover:bg-gray-100 text-gray-500 md:hidden"
+                >
+                  <Menu size={24} />
+                </button>
+                <button 
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="p-2 rounded-md hover:bg-gray-100 text-gray-500 hidden md:block"
+                  title={isSidebarOpen ? "サイドバーを閉じる" : "サイドバーを開く"}
+                >
+                   <Menu size={20} />
+                </button>
+                <div>
+                  <h1 className="text-xl md:text-2xl font-bold text-gray-800">SEO Rank Visualizer</h1>
+                  <p className="text-gray-500 text-xs md:text-sm mt-1">
+                    キーワード順位の推移を可視化・分析
+                  </p>
+                </div>
+              </div>
           
-          <div className="flex items-center gap-4">
-             <button
-               onClick={() => setShowAdmin(!showAdmin)}
-               className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${showAdmin ? 'bg-gray-100 text-blue-600' : 'text-gray-400'}`}
-               title="データ管理"
-             >
-               <Settings size={20} />
-             </button>
+              <div className="flex items-center gap-4">
+                 <button
+                   onClick={() => setShowAdmin(!showAdmin)}
+                   className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${showAdmin ? 'bg-gray-100 text-blue-600' : 'text-gray-400'}`}
+                   title="データ管理"
+                 >
+                   <Settings size={20} />
+                 </button>
           
              <div className="flex bg-gray-100 p-1 rounded-lg">
               <button
