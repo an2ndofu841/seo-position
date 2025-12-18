@@ -47,7 +47,7 @@ export async function addKeywordsToGroup(groupId: string, keywordIds: string[]) 
     }));
 
     const { error } = await supabase
-      .from('keyword_groups')
+      .from('group_members')
       .upsert(rows, { onConflict: 'group_id, keyword_id' });
 
     if (error) throw error;
@@ -62,7 +62,7 @@ export async function removeKeywordsFromGroup(groupId: string, keywordIds: strin
   try {
     const supabase = await createNoCookieClient();
     const { error } = await supabase
-      .from('keyword_groups')
+      .from('group_members')
       .delete()
       .eq('group_id', groupId)
       .in('keyword_id', keywordIds);
@@ -84,7 +84,7 @@ export async function getGroups(): Promise<KeywordGroup[]> {
       .select(`
         id,
         name,
-        keyword_groups (
+        group_members (
           keyword_id,
           keywords (
             keyword
@@ -99,7 +99,7 @@ export async function getGroups(): Promise<KeywordGroup[]> {
       id: g.id,
       name: g.name,
       // Map joined data to simple string array of keywords for filtering
-      keywords: g.keyword_groups
+      keywords: g.group_members
         .map((kg: any) => kg.keywords?.keyword)
         .filter((k: any) => k !== null)
     }));
