@@ -17,16 +17,16 @@ interface RankingDistributionChartProps {
 }
 
 const RANGES = [
-  { key: 'range1_10', label: '1位〜10位', min: 1, max: 10, color: '#166534' },   // green-800
-  { key: 'range11_20', label: '11位〜20位', min: 11, max: 20, color: '#15803d' }, // green-700
-  { key: 'range21_30', label: '21位〜30位', min: 21, max: 30, color: '#16a34a' }, // green-600
-  { key: 'range31_40', label: '31位〜40位', min: 31, max: 40, color: '#22c55e' }, // green-500
-  { key: 'range41_50', label: '41位〜50位', min: 41, max: 50, color: '#4ade80' }, // green-400
-  { key: 'range51_60', label: '51位〜60位', min: 51, max: 60, color: '#86efac' }, // green-300
-  { key: 'range61_70', label: '61位〜70位', min: 61, max: 70, color: '#facc15' }, // yellow-400
-  { key: 'range71_80', label: '71位〜80位', min: 71, max: 80, color: '#fbbf24' }, // yellow-500
-  { key: 'range81_90', label: '81位〜90位', min: 81, max: 90, color: '#f59e0b' }, // yellow-600
-  { key: 'range91_100', label: '91位〜100位', min: 91, max: 100, color: '#d97706' }, // yellow-700
+  { key: 'range1_10', label: '1位〜10位', min: 1, max: 10, color: '#2563eb' },   // blue-600
+  { key: 'range11_20', label: '11位〜20位', min: 11, max: 20, color: '#3b82f6' }, // blue-500
+  { key: 'range21_30', label: '21位〜30位', min: 21, max: 30, color: '#0ea5e9' }, // sky-500
+  { key: 'range31_40', label: '31位〜40位', min: 31, max: 40, color: '#06b6d4' }, // cyan-500
+  { key: 'range41_50', label: '41位〜50位', min: 41, max: 50, color: '#14b8a6' }, // teal-500
+  { key: 'range51_60', label: '51位〜60位', min: 51, max: 60, color: '#84cc16' }, // lime-500
+  { key: 'range61_70', label: '61位〜70位', min: 61, max: 70, color: '#eab308' }, // yellow-500
+  { key: 'range71_80', label: '71位〜80位', min: 71, max: 80, color: '#f97316' }, // orange-500
+  { key: 'range81_90', label: '81位〜90位', min: 81, max: 90, color: '#ef4444' }, // red-500
+  { key: 'range91_100', label: '91位〜100位', min: 91, max: 100, color: '#b91c1c' }, // red-700
 ];
 
 export const RankingDistributionChart: React.FC<RankingDistributionChartProps> = ({ data, allMonths }) => {
@@ -77,6 +77,7 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
           <BarChart
             data={chartData}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            barSize={40}
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="name" />
