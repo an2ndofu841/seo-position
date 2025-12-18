@@ -113,7 +113,7 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
 
       {/* Mini Chart */}
       <div className="flex-1 w-full min-h-0 relative mb-1">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <LineChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
             <XAxis 

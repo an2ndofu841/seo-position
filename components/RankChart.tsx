@@ -44,7 +44,7 @@ export const RankChart: React.FC<RankChartProps> = ({ data, allMonths }) => {
         順位推移 ({data.length} キーワード)
       </h3>
       <div className="w-full h-[calc(100%-3rem)] min-h-[300px]">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <LineChart
             data={chartData}
             margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
