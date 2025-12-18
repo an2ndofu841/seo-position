@@ -7,9 +7,6 @@ import { KeywordHistory, MonthlyData, ParsedCsvData } from '@/types';
 export async function deleteRankingDataByMonth(monthStr: string) {
   try {
     const supabase = await createNoCookieClient();
-    
-    // monthStr format: YYYY-MM
-    // Ensure we match the exact date format stored in DB: YYYY-MM-01
     const targetDate = `${monthStr}-01`;
 
     if (!/^\d{4}-\d{2}$/.test(monthStr)) {
@@ -20,7 +17,7 @@ export async function deleteRankingDataByMonth(monthStr: string) {
 
     const { error, count } = await supabase
       .from('rankings')
-      .delete({ count: 'exact' }) // count records to verify deletion
+      .delete({ count: 'exact' })
       .eq('ranking_date', targetDate);
 
     if (error) {
@@ -30,11 +27,11 @@ export async function deleteRankingDataByMonth(monthStr: string) {
 
     console.log(`Deleted ${count} records.`);
     
+    // RLSなどでブロックされた場合もcountは0になる可能性がある
+    // 実際にデータがあるはずなのに0だった場合はエラーとみなす
+    // ただし、「本当にデータがない」場合との区別がつかないが、UI上はボタンがある＝データがあるはず
     if (count === 0) {
-       // If exact match failed, try range query (just in case of timezone shift, though 'date' type shouldn't have it)
-       // But 'date' type in Postgres is strictly YYYY-MM-01. 
-       // If count is 0, it means no data found. Maybe the user sees data but date is different?
-       return { success: true, message: '削除対象のデータが見つかりませんでした。' };
+       return { success: false, error: '削除対象が見つからないか、削除権限がありません(RLSポリシーを確認してください)。' };
     }
 
     return { success: true, count };
@@ -50,32 +47,34 @@ export async function deleteAllData() {
     const supabase = await createNoCookieClient();
 
     // 1. Delete all rankings
-    const { error: rankError } = await supabase
+    // Supabase (PostgREST) requires a filter for delete unless configured otherwise.
+    // Use a filter that is always true like "id is not null"
+    const { error: rankError, count: rankCount } = await supabase
       .from('rankings')
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows (using neq id dummy is a common trick if filtered delete is required, but here we want all)
-      // Actually, standard delete without where clause might be blocked by Supabase setting "Delete requires filter".
-      // Safe way is to delete by some condition that covers all.
+      .delete({ count: 'exact' })
+      .not('id', 'is', null);
     
     if (rankError) {
-      // If "Delete requires filter" is on, try deleting by date range or id is not null
-      const { error: rankErrorRetry } = await supabase
-        .from('rankings')
-        .delete()
-        .not('id', 'is', null);
-        
-      if (rankErrorRetry) throw rankErrorRetry;
+       throw new Error(`Ranking Delete Failed: ${rankError.message}`);
     }
 
-    // 2. Delete all keywords (Cascade delete should handle rankings but let's be explicit or just delete keywords)
-    const { error: kwdError } = await supabase
+    // 2. Delete all keywords
+    const { error: kwdError, count: kwdCount } = await supabase
       .from('keywords')
-      .delete()
+      .delete({ count: 'exact' })
       .not('id', 'is', null);
 
     if (kwdError) {
-      console.error('Delete All Keywords Error:', kwdError);
-      throw new Error(`Delete Keywords Failed: ${kwdError.message}`);
+      throw new Error(`Keyword Delete Failed: ${kwdError.message}`);
+    }
+
+    if (rankCount === 0 && kwdCount === 0) {
+        // Maybe already empty, or RLS blocked it
+        // We can check if any data exists to distinguish
+        const { count: checkCount } = await supabase.from('keywords').select('*', { count: 'exact', head: true });
+        if (checkCount && checkCount > 0) {
+            return { success: false, error: '削除権限がありません(RLSポリシーを確認してください)。' };
+        }
     }
 
     return { success: true };
