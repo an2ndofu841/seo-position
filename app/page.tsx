@@ -1,65 +1,142 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { FileUpload } from '@/components/FileUpload';
+import { RankTable } from '@/components/RankTable';
+import { RankChart } from '@/components/RankChart';
+import { KeywordHistory } from '@/types';
+import { parseCsvFile } from '@/utils/csvParser';
+import { saveRankingData, getRankingData } from '@/app/actions';
+// import { Trash2 } from 'lucide-react'; // Removing clear button for now
 
 export default function Home() {
+  const [data, setData] = useState<KeywordHistory[]>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load data from server on mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const serverData = await getRankingData();
+      setData(serverData);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Derive all unique months from data for the chart axis
+  const allMonths = useMemo(() => {
+    const months = new Set<string>();
+    data.forEach((item) => {
+      Object.keys(item.history).forEach((m) => months.add(m));
+    });
+    return Array.from(months).sort();
+  }, [data]);
+
+  const handleFileUpload = async (files: FileList) => {
+    setIsProcessing(true);
+    
+    try {
+      // Process files sequentially
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        // Parse locally
+        const { parsedData } = await parseCsvFile(file);
+        
+        // Save to server
+        const result = await saveRankingData(parsedData);
+        if (!result.success) {
+          throw new Error('Failed to save data to database');
+        }
+      }
+      
+      // Refresh data from server
+      await fetchData();
+      alert('データのアップロードと保存が完了しました。');
+      
+    } catch (error) {
+      console.error('Error processing files:', error);
+      alert('ファイルの処理中にエラーが発生しました。');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleToggleSelect = (keyword: string) => {
+    setSelectedKeywords((prev) => {
+      if (prev.includes(keyword)) {
+        return prev.filter((k) => k !== keyword);
+      } else {
+        if (prev.length >= 10) {
+          alert('グラフに表示できるキーワードは最大10個までです。');
+          return prev;
+        }
+        return [...prev, keyword];
+      }
+    });
+  };
+
+  const chartData = useMemo(() => {
+    return data.filter((item) => selectedKeywords.includes(item.keyword));
+  }, [data, selectedKeywords]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen bg-gray-100 p-8 font-sans">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">SEO Rank Visualizer</h1>
+            <p className="text-gray-500 text-sm mt-1">
+              CSVデータをアップロードして、キーワード順位の推移を可視化します (Supabase連携済み)
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+             {/* Clear button disabled for persistence mode */}
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        {/* Upload Area */}
+        <FileUpload onFileUpload={handleFileUpload} />
+        
+        {isProcessing && (
+          <div className="text-center text-blue-600 py-4 font-medium animate-pulse">
+            データをSupabaseに保存中...
+          </div>
+        )}
+
+        {/* Chart Area */}
+        {selectedKeywords.length > 0 && (
+          <RankChart data={chartData} allMonths={allMonths} />
+        )}
+
+        {/* Table Area */}
+        {isLoading ? (
+           <div className="text-center py-20 text-gray-500">
+            データを読み込み中...
+          </div>
+        ) : data.length > 0 ? (
+          <RankTable
+            data={data}
+            selectedKeywords={selectedKeywords}
+            onToggleSelect={handleToggleSelect}
+          />
+        ) : (
+          !isProcessing && (
+            <div className="text-center py-20 text-gray-400">
+              データがありません。CSVファイルをアップロードしてください。
+            </div>
+          )
+        )}
+      </div>
+    </main>
   );
 }
