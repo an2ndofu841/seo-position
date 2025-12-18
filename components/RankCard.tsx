@@ -58,7 +58,9 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
         </div>
         <div className="flex gap-1 flex-shrink-0">
           {isAI && (
-            <Bot size={14} className="text-purple-600" title="AI Overview" />
+            <span title="AI Overview" className="text-purple-600 cursor-help">
+              <Bot size={14} />
+            </span>
           )}
           {latestUrl && (
             <a href={latestUrl} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-500">
@@ -108,4 +110,3 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
     </div>
   );
 };
-
