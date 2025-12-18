@@ -5,7 +5,7 @@ import { FileUpload } from '@/components/FileUpload';
 import { RankTable } from '@/components/RankTable';
 import { RankChart } from '@/components/RankChart';
 import { RankCard } from '@/components/RankCard';
-import { KeywordHistory, SortField, SortOrder } from '@/types'; // Import Sort Types
+import { KeywordHistory, SortField, SortOrder } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
 import { saveRankingData, getRankingData, deleteRankingDataByMonth, deleteAllData } from '@/app/actions';
 import { LayoutGrid, List, BarChart2, Settings, Trash2, AlertTriangle, ArrowUpDown } from 'lucide-react';
@@ -23,14 +23,14 @@ export default function Home() {
   const [filterText, setFilterText] = useState('');
   const [showAdmin, setShowAdmin] = useState(false);
   
-  // Sorting Control (Moved to parent)
+  // Sorting Control
   const [sortField, setSortField] = useState<SortField>('position');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   
-  // Pagination / Limit for Grid View
+  // Pagination
   const [displayLimit, setDisplayLimit] = useState(20);
 
-  // Load data from server on mount
+  // Load data
   useEffect(() => {
     fetchData();
   }, []);
@@ -47,7 +47,6 @@ export default function Home() {
     }
   };
 
-  // Derive all unique months from data for the chart axis
   const allMonths = useMemo(() => {
     const months = new Set<string>();
     data.forEach((item) => {
@@ -62,22 +61,19 @@ export default function Home() {
 
   const handleFileUpload = async (files: FileList, dateOverride?: string) => {
     if (dateOverride === '') { }
-    
     setIsProcessing(true);
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const { parsedData } = await parseCsvFile(file, dateOverride);
         const result = await saveRankingData(parsedData);
-        if (!result.success) {
-          throw new Error(`Failed to save data to database: ${result.error}`);
-        }
+        if (!result.success) throw new Error(`Failed to save: ${result.error}`);
       }
       await fetchData();
       alert('データのアップロードと保存が完了しました。');
     } catch (error: any) {
-      console.error('Error processing files:', error);
-      alert(`エラーが発生しました: ${error.message}`);
+      console.error('Error:', error);
+      alert(`エラー: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -93,7 +89,7 @@ export default function Home() {
       alert(`${month} のデータを削除しました。`);
     } catch (error: any) {
       console.error('Delete error:', error);
-      alert(`削除に失敗しました: ${error.message}`);
+      alert(`削除失敗: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -111,7 +107,7 @@ export default function Home() {
       setShowAdmin(false);
     } catch (error: any) {
       console.error('Delete All error:', error);
-      alert(`削除に失敗しました: ${error.message}`);
+      alert(`削除失敗: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -133,24 +129,22 @@ export default function Home() {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      // Set default order based on field
       if (field === 'volume' || field === 'diff') {
-        setSortOrder('desc'); // High volume/diff first usually
+        setSortOrder('desc');
       } else {
-        setSortOrder('asc'); // Rank 1 is "lowest number" but highest rank
+        setSortOrder('asc');
       }
     }
   };
 
   const filteredData = useMemo(() => {
-    let result = [...data]; // Create a shallow copy to sort
+    let result = [...data];
     if (filterText) {
       result = result.filter((item) =>
         item.keyword.toLowerCase().includes(filterText.toLowerCase())
       );
     }
     
-    // Sort Logic
     result.sort((a, b) => {
       let valA: any = '';
       let valB: any = '';
@@ -207,7 +201,6 @@ export default function Home() {
                <Settings size={20} />
              </button>
           
-             {/* View Mode Toggle */}
              <div className="flex bg-gray-100 p-1 rounded-lg">
               <button
                 onClick={() => setViewMode('list')}
@@ -231,7 +224,7 @@ export default function Home() {
           </div>
         </div>
         
-        {/* Admin Panel ... (omitted same code) ... */}
+        {/* Admin Panel */}
         {showAdmin && (
           <div className="bg-red-50 border border-red-200 p-6 rounded-lg animate-in fade-in slide-in-from-top-2 space-y-6">
             <div>
@@ -286,15 +279,15 @@ export default function Home() {
           </div>
         )}
 
-        {/* Controls (Search Filter & Sort) */}
+        {/* Controls */}
         {data.length > 0 && (
           <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
-            {/* Search */}
+            {/* Search - Text color fixed here */}
             <div className="relative w-full sm:w-auto flex-1">
               <input
                 type="text"
                 placeholder="キーワードを検索..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
               />
@@ -309,7 +302,7 @@ export default function Home() {
               <select
                 value={sortField}
                 onChange={(e) => handleSortChange(e.target.value as SortField)}
-                className="block w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500"
+                className="block w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 text-gray-900 bg-white"
               >
                 <option value="position">順位</option>
                 <option value="volume">ボリューム</option>
@@ -351,9 +344,9 @@ export default function Home() {
                   data={filteredData}
                   selectedKeywords={selectedKeywords}
                   onToggleSelect={handleToggleSelect}
-                  sortField={sortField} // Pass current sort
-                  sortOrder={sortOrder} // Pass current order
-                  onSortChange={handleSortChange} // Allow table headers to change sort
+                  sortField={sortField}
+                  sortOrder={sortOrder}
+                  onSortChange={handleSortChange}
                 />
               </div>
             ) : (

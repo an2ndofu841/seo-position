@@ -63,7 +63,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload }) => {
             setUseAutoDate(false);
           }}
           disabled={useAutoDate}
-          className="border border-gray-300 rounded px-2 py-1 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+          className="border border-gray-300 rounded px-2 py-1 text-sm disabled:bg-gray-100 disabled:text-gray-400 text-gray-900 bg-white"
         />
       </div>
 
