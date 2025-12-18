@@ -1,22 +1,17 @@
 'use server';
 
 import { createNoCookieClient } from '@/utils/supabase/server';
-import { KeywordHistory, MonthlyData } from '@/types';
-
-export interface ParsedCsvData {
-  keyword: string;
-  volume: number;
-  position: number | null;
-  url: string;
-  isAIOverview: boolean;
-  dateStr: string; // YYYY-MM
-}
+import { KeywordHistory, MonthlyData, ParsedCsvData } from '@/types';
 
 export async function saveRankingData(data: ParsedCsvData[]) {
-  // Cookieを使わないクライアントを使用
-  const supabase = await createNoCookieClient();
-
   try {
+    const supabase = await createNoCookieClient();
+    
+    // Check if client is initialized correctly
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      throw new Error('Supabase environment variables are missing on server.');
+    }
+
     // 1. Upsert Keywords
     const uniqueKeywords = Array.from(new Map(data.map(item => [item.keyword, item])).values());
     
@@ -70,76 +65,85 @@ export async function saveRankingData(data: ParsedCsvData[]) {
     return { success: true };
   } catch (error: any) {
     console.error('Server Action Error (saveRankingData):', error);
-    // クライアントにエラー詳細を返す
     return { success: false, error: error.message || String(error) };
   }
 }
 
 export async function getRankingData(): Promise<KeywordHistory[]> {
-  const supabase = await createNoCookieClient();
+  try {
+    const supabase = await createNoCookieClient();
 
-  const { data: keywords, error } = await supabase
-    .from('keywords')
-    .select(`
-      id,
-      keyword,
-      volume,
-      rankings (
-        ranking_date,
-        position,
-        url,
-        is_ai_overview
-      )
-    `);
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('Environment variables missing in getRankingData');
+      return [];
+    }
 
-  if (error) {
-    console.error('Fetch Error:', error);
-    throw new Error(`Fetch Failed: ${error.message}`);
-  }
+    const { data: keywords, error } = await supabase
+      .from('keywords')
+      .select(`
+        id,
+        keyword,
+        volume,
+        rankings (
+          ranking_date,
+          position,
+          url,
+          is_ai_overview
+        )
+      `);
 
-  if (!keywords) return [];
+    if (error) {
+      console.error('Fetch Error:', error);
+      throw new Error(`Fetch Failed: ${error.message}`);
+    }
 
-  const result: KeywordHistory[] = keywords.map((k: any) => {
-    const history: { [monthKey: string]: MonthlyData } = {};
-    
-    const sortedRankings = k.rankings.sort((a: any, b: any) => 
-      new Date(a.ranking_date).getTime() - new Date(b.ranking_date).getTime()
-    );
+    if (!keywords) return [];
 
-    sortedRankings.forEach((r: any) => {
-      const dateStr = r.ranking_date.substring(0, 7);
-      history[dateStr] = {
-        position: r.position,
-        url: r.url,
-        isAIOverview: r.is_ai_overview,
-        dateStr: dateStr,
+    const result: KeywordHistory[] = keywords.map((k: any) => {
+      const history: { [monthKey: string]: MonthlyData } = {};
+      
+      const sortedRankings = (k.rankings || []).sort((a: any, b: any) => 
+        new Date(a.ranking_date).getTime() - new Date(b.ranking_date).getTime()
+      );
+
+      sortedRankings.forEach((r: any) => {
+        const dateStr = r.ranking_date.substring(0, 7);
+        history[dateStr] = {
+          position: r.position,
+          url: r.url,
+          isAIOverview: r.is_ai_overview,
+          dateStr: dateStr,
+        };
+      });
+
+      const months = Object.keys(history).sort();
+      const lastMonth = months[months.length - 1];
+      const prevMonth = months.length > 1 ? months[months.length - 2] : null;
+
+      const currentPos = lastMonth ? history[lastMonth].position : null;
+      const prevPos = prevMonth ? history[prevMonth].position : null;
+
+      let diff: number | null = null;
+      if (currentPos !== null && prevPos !== null) {
+        diff = prevPos - currentPos;
+      } else if (currentPos !== null && prevPos === null) {
+        diff = 999;
+      } else if (currentPos === null && prevPos !== null) {
+        diff = -999;
+      }
+
+      return {
+        keyword: k.keyword,
+        volume: k.volume,
+        history,
+        latestPosition: currentPos,
+        latestDiff: diff,
       };
     });
 
-    const months = Object.keys(history).sort();
-    const lastMonth = months[months.length - 1];
-    const prevMonth = months.length > 1 ? months[months.length - 2] : null;
-
-    const currentPos = lastMonth ? history[lastMonth].position : null;
-    const prevPos = prevMonth ? history[prevMonth].position : null;
-
-    let diff: number | null = null;
-    if (currentPos !== null && prevPos !== null) {
-      diff = prevPos - currentPos;
-    } else if (currentPos !== null && prevPos === null) {
-      diff = 999;
-    } else if (currentPos === null && prevPos !== null) {
-      diff = -999;
-    }
-
-    return {
-      keyword: k.keyword,
-      volume: k.volume,
-      history,
-      latestPosition: currentPos,
-      latestDiff: diff,
-    };
-  });
-
-  return result;
+    return result;
+  } catch (error) {
+    console.error('Error in getRankingData:', error);
+    return [];
+  }
 }

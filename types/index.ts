@@ -22,6 +22,14 @@ export interface KeywordHistory {
   isNew?: boolean; // 新規キーワードフラグ
 }
 
+export interface ParsedCsvData {
+  keyword: string;
+  volume: number;
+  position: number | null;
+  url: string;
+  isAIOverview: boolean;
+  dateStr: string; // YYYY-MM
+}
+
 export type SortField = 'keyword' | 'volume' | 'position' | 'diff';
 export type SortOrder = 'asc' | 'desc';
-
