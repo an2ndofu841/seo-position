@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -70,20 +70,19 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
   return (
     <div className="w-full bg-white p-6 rounded-lg shadow border border-gray-200">
       <h3 className="text-lg font-semibold mb-6 text-gray-800">
-        順位分布推移 (積み上げ棒グラフ)
+        順位分布推移 (積み上げ面グラフ)
       </h3>
       <div className="w-full h-[500px]">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-          <BarChart
+          <AreaChart
             data={chartData}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            barSize={40}
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="name" />
             <YAxis label={{ value: 'キーワード数', angle: -90, position: 'insideLeft' }} />
             <Tooltip 
-              cursor={{ fill: 'transparent' }}
+              cursor={{ stroke: '#666', strokeWidth: 1, strokeDasharray: '3 3' }}
               contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
               itemSorter={(item) => RANGES.findIndex(r => r.key === item.dataKey)}
             />
@@ -103,16 +102,19 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
               }
             />
             {[...RANGES].reverse().map((range) => (
-              <Bar
+              <Area
                 key={range.key}
+                type="monotone"
                 dataKey={range.key}
                 name={range.label}
-                stackId="a"
+                stackId="1"
+                stroke={range.color}
                 fill={range.color}
+                fillOpacity={0.8}
                 animationDuration={1000}
               />
             ))}
-          </BarChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>
