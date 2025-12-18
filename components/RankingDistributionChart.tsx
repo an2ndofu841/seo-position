@@ -85,9 +85,18 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
             <Tooltip 
               cursor={{ fill: 'transparent' }}
               contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+              itemSorter={(item) => RANGES.findIndex(r => r.key === item.dataKey)}
             />
-            <Legend wrapperStyle={{ paddingTop: '20px' }} />
-            {RANGES.map((range) => (
+            <Legend 
+              wrapperStyle={{ paddingTop: '20px' }} 
+              payload={RANGES.map(r => ({
+                value: r.label,
+                type: 'square',
+                id: r.key,
+                color: r.color
+              }))}
+            />
+            {[...RANGES].reverse().map((range) => (
               <Bar
                 key={range.key}
                 dataKey={range.key}
