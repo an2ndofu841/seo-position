@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/utils/supabase/server';
+import { createNoCookieClient } from '@/utils/supabase/server';
 import { KeywordHistory, MonthlyData } from '@/types';
 
 export interface ParsedCsvData {
@@ -13,29 +13,29 @@ export interface ParsedCsvData {
 }
 
 export async function saveRankingData(data: ParsedCsvData[]) {
-  const supabase = await createClient();
+  // Cookieを使わないクライアントを使用
+  const supabase = await createNoCookieClient();
 
   try {
     // 1. Upsert Keywords
-    // Get unique keywords from the batch
     const uniqueKeywords = Array.from(new Map(data.map(item => [item.keyword, item])).values());
     
-    // Prepare keyword upsert data
     const keywordUpsertData = uniqueKeywords.map(item => ({
       keyword: item.keyword,
-      volume: item.volume, // Update volume to latest
+      volume: item.volume, 
       updated_at: new Date().toISOString(),
     }));
 
-    // Perform upsert on keywords
     const { data: keywordResults, error: keywordError } = await supabase
       .from('keywords')
       .upsert(keywordUpsertData, { onConflict: 'keyword' })
       .select('id, keyword');
 
-    if (keywordError) throw keywordError;
+    if (keywordError) {
+      console.error('Keyword Upsert Error:', keywordError);
+      throw new Error(`Keyword Upsert Failed: ${keywordError.message}`);
+    }
 
-    // Create a map of keyword text to ID
     const keywordIdMap = new Map<string, string>();
     keywordResults?.forEach(k => keywordIdMap.set(k.keyword, k.id));
 
@@ -44,7 +44,6 @@ export async function saveRankingData(data: ParsedCsvData[]) {
       const keywordId = keywordIdMap.get(item.keyword);
       if (!keywordId) return null;
 
-      // Ensure date is first of the month YYYY-MM-01
       const dateParts = item.dateStr.split('-');
       const rankingDate = `${dateParts[0]}-${dateParts[1]}-01`;
 
@@ -62,20 +61,23 @@ export async function saveRankingData(data: ParsedCsvData[]) {
         .from('rankings')
         .upsert(rankingUpsertData as any, { onConflict: 'keyword_id, ranking_date' });
       
-      if (rankingError) throw rankingError;
+      if (rankingError) {
+        console.error('Ranking Upsert Error:', rankingError);
+        throw new Error(`Ranking Upsert Failed: ${rankingError.message}`);
+      }
     }
 
     return { success: true };
-  } catch (error) {
-    console.error('Error saving data:', error);
-    return { success: false, error };
+  } catch (error: any) {
+    console.error('Server Action Error (saveRankingData):', error);
+    // クライアントにエラー詳細を返す
+    return { success: false, error: error.message || String(error) };
   }
 }
 
 export async function getRankingData(): Promise<KeywordHistory[]> {
-  const supabase = await createClient();
+  const supabase = await createNoCookieClient();
 
-  // Fetch keywords and their rankings
   const { data: keywords, error } = await supabase
     .from('keywords')
     .select(`
@@ -91,23 +93,20 @@ export async function getRankingData(): Promise<KeywordHistory[]> {
     `);
 
   if (error) {
-    console.error('Error fetching data:', error);
-    return [];
+    console.error('Fetch Error:', error);
+    throw new Error(`Fetch Failed: ${error.message}`);
   }
 
   if (!keywords) return [];
 
-  // Transform to KeywordHistory format
   const result: KeywordHistory[] = keywords.map((k: any) => {
     const history: { [monthKey: string]: MonthlyData } = {};
     
-    // Sort rankings by date
     const sortedRankings = k.rankings.sort((a: any, b: any) => 
       new Date(a.ranking_date).getTime() - new Date(b.ranking_date).getTime()
     );
 
     sortedRankings.forEach((r: any) => {
-      // Convert YYYY-MM-DD to YYYY-MM
       const dateStr = r.ranking_date.substring(0, 7);
       history[dateStr] = {
         position: r.position,
@@ -117,7 +116,6 @@ export async function getRankingData(): Promise<KeywordHistory[]> {
       };
     });
 
-    // Calculate diffs
     const months = Object.keys(history).sort();
     const lastMonth = months[months.length - 1];
     const prevMonth = months.length > 1 ? months[months.length - 2] : null;
@@ -145,4 +143,3 @@ export async function getRankingData(): Promise<KeywordHistory[]> {
 
   return result;
 }
-
