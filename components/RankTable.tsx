@@ -21,14 +21,6 @@ export const RankTable: React.FC<RankTableProps> = ({
   sortOrder = 'asc',
   onSortChange,
 }) => {
-  // 内部ソートロジックは削除し、受け取った既にソート済みの data をそのまま表示するだけにするのが最もシンプルですが、
-  // UIとしてのヘッダークリック機能（onSortChangeの呼び出し）は残します。
-  
-  // NOTE: data is already sorted by parent if passed correctly, 
-  // but if we want to be safe or if parent just passes raw filtered data, we can sort here.
-  // In this architecture, parent sorts 'filteredData' before passing it to both Grid and List views.
-  // So we don't need to sort again here.
-
   const handleHeaderClick = (field: SortField) => {
     if (onSortChange) {
       onSortChange(field);
@@ -105,6 +97,7 @@ export const RankTable: React.FC<RankTableProps> = ({
               const ai = isAIOverview(item);
               const isSelected = selectedKeywords.includes(item.keyword);
               const crown = getRankCrown(item.latestPosition);
+              const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(item.keyword)}`;
 
               return (
                 <tr
@@ -156,6 +149,20 @@ export const RankTable: React.FC<RankTableProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex items-center gap-2">
+                       {/* Google Search Link */}
+                      <a 
+                        href={googleSearchUrl} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                        title={`Google検索: ${item.keyword}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="w-4 h-4 flex items-center justify-center font-serif font-bold text-[10px] border border-current rounded-sm leading-none">
+                          G
+                        </div>
+                      </a>
+
                       {ai && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200" title="AI Overview">
                           <Bot size={14} className="mr-1" />

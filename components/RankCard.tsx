@@ -10,7 +10,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { KeywordHistory } from '../types';
-import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3, Crown } from 'lucide-react';
+import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3, Crown, Search } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankCardProps {
@@ -42,9 +42,11 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
     if (!rank) return null;
     if (rank === 1) return <Crown size={16} className="text-yellow-500 fill-yellow-500" />;
     if (rank === 2) return <Crown size={16} className="text-gray-400 fill-gray-400" />;
-    if (rank === 3) return <Crown size={16} className="text-orange-500 fill-orange-500" />; // Bronze
+    if (rank === 3) return <Crown size={16} className="text-orange-500 fill-orange-500" />;
     return null;
   };
+
+  const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(data.keyword)}`;
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col h-[220px] hover:shadow-md transition-shadow">
@@ -82,14 +84,27 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
              </div>
           </div>
         </div>
-        <div className="flex gap-1 flex-shrink-0">
+        <div className="flex gap-1.5 flex-shrink-0 items-center">
+          {/* Google Search Link */}
+          <a 
+            href={googleSearchUrl} 
+            target="_blank" 
+            rel="noreferrer" 
+            className="text-gray-400 hover:text-blue-600 transition-colors"
+            title={`Google検索: ${data.keyword}`}
+          >
+            <div className="w-3.5 h-3.5 flex items-center justify-center font-serif font-bold text-[10px] border border-current rounded-sm leading-none">
+              G
+            </div>
+          </a>
+
           {isAI && (
             <span title="AI Overview" className="text-purple-600 cursor-help">
               <Bot size={14} />
             </span>
           )}
           {latestUrl && (
-            <a href={latestUrl} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-500">
+            <a href={latestUrl} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-500" title="掲載ページへ">
               <ExternalLink size={14} />
             </a>
           )}
