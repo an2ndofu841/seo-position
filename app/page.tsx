@@ -7,7 +7,6 @@ import { RankChart } from '@/components/RankChart';
 import { KeywordHistory } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
 import { saveRankingData, getRankingData } from '@/app/actions';
-// import { Trash2 } from 'lucide-react'; // Removing clear button for now
 
 export default function Home() {
   const [data, setData] = useState<KeywordHistory[]>([]);
@@ -54,7 +53,9 @@ export default function Home() {
         // Save to server
         const result = await saveRankingData(parsedData);
         if (!result.success) {
-          throw new Error('Failed to save data to database');
+          // 詳細なエラーをコンソールとアラートに出す
+          console.error('Server Save Error Details:', result.error);
+          throw new Error(`Failed to save data to database: ${result.error}`);
         }
       }
       
@@ -62,9 +63,10 @@ export default function Home() {
       await fetchData();
       alert('データのアップロードと保存が完了しました。');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing files:', error);
-      alert('ファイルの処理中にエラーが発生しました。');
+      // ユーザーに見えるようにアラートにも出す
+      alert(`エラーが発生しました: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
