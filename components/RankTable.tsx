@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { KeywordHistory, SortField, SortOrder } from '../types';
 import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink, Crown } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -7,54 +7,33 @@ interface RankTableProps {
   data: KeywordHistory[];
   selectedKeywords: string[];
   onToggleSelect: (keyword: string) => void;
+  // Sorting props from parent
+  sortField?: SortField;
+  sortOrder?: SortOrder;
+  onSortChange?: (field: SortField) => void;
 }
 
 export const RankTable: React.FC<RankTableProps> = ({
   data,
   selectedKeywords,
   onToggleSelect,
+  sortField = 'position',
+  sortOrder = 'asc',
+  onSortChange,
 }) => {
-  const [sortField, setSortField] = useState<SortField>('position');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  // 内部ソートロジックは削除し、受け取った既にソート済みの data をそのまま表示するだけにするのが最もシンプルですが、
+  // UIとしてのヘッダークリック機能（onSortChangeの呼び出し）は残します。
+  
+  // NOTE: data is already sorted by parent if passed correctly, 
+  // but if we want to be safe or if parent just passes raw filtered data, we can sort here.
+  // In this architecture, parent sorts 'filteredData' before passing it to both Grid and List views.
+  // So we don't need to sort again here.
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc'); // Default for numbers usually asc (1 is best)
+  const handleHeaderClick = (field: SortField) => {
+    if (onSortChange) {
+      onSortChange(field);
     }
   };
-
-  const sortedData = [...data].sort((a, b) => {
-    let valA: any = '';
-    let valB: any = '';
-
-    switch (sortField) {
-      case 'keyword':
-        valA = a.keyword;
-        valB = b.keyword;
-        break;
-      case 'volume':
-        valA = a.volume;
-        valB = b.volume;
-        // Volume usually desc is better
-        break;
-      case 'position':
-        // Nulls should be at bottom usually
-        valA = a.latestPosition ?? 999;
-        valB = b.latestPosition ?? 999;
-        break;
-      case 'diff':
-        valA = a.latestDiff ?? 0;
-        valB = b.latestDiff ?? 0;
-        break;
-    }
-
-    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
-  });
 
   const getDiffIcon = (diff: number | null) => {
     if (diff === null || diff === 0) return <Minus className="w-4 h-4 text-gray-400" />;
@@ -84,7 +63,6 @@ export const RankTable: React.FC<RankTableProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-      {/* 以前ここにあったヘッダー（検索ボックス）は親コンポーネントに移動しました */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -94,25 +72,25 @@ export const RankTable: React.FC<RankTableProps> = ({
               </th>
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('keyword')}
+                onClick={() => handleHeaderClick('keyword')}
               >
                 Keyword {sortField === 'keyword' && (sortOrder === 'asc' ? '▲' : '▼')}
               </th>
                <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('position')}
+                onClick={() => handleHeaderClick('position')}
               >
                 Rank {sortField === 'position' && (sortOrder === 'asc' ? '▲' : '▼')}
               </th>
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('diff')}
+                onClick={() => handleHeaderClick('diff')}
               >
                 Diff {sortField === 'diff' && (sortOrder === 'asc' ? '▲' : '▼')}
               </th>
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('volume')}
+                onClick={() => handleHeaderClick('volume')}
               >
                 Volume {sortField === 'volume' && (sortOrder === 'asc' ? '▲' : '▼')}
               </th>
@@ -122,7 +100,7 @@ export const RankTable: React.FC<RankTableProps> = ({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {sortedData.map((item) => {
+            {data.map((item) => {
               const url = getLatestUrl(item);
               const ai = isAIOverview(item);
               const isSelected = selectedKeywords.includes(item.keyword);

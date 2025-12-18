@@ -5,10 +5,10 @@ import { FileUpload } from '@/components/FileUpload';
 import { RankTable } from '@/components/RankTable';
 import { RankChart } from '@/components/RankChart';
 import { RankCard } from '@/components/RankCard';
-import { KeywordHistory } from '@/types';
+import { KeywordHistory, SortField, SortOrder } from '@/types'; // Import Sort Types
 import { parseCsvFile } from '@/utils/csvParser';
 import { saveRankingData, getRankingData, deleteRankingDataByMonth, deleteAllData } from '@/app/actions';
-import { LayoutGrid, List, BarChart2, Settings, Trash2, AlertTriangle } from 'lucide-react';
+import { LayoutGrid, List, BarChart2, Settings, Trash2, AlertTriangle, ArrowUpDown } from 'lucide-react';
 
 type ViewMode = 'list' | 'grid';
 
@@ -21,7 +21,11 @@ export default function Home() {
   // View Control
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filterText, setFilterText] = useState('');
-  const [showAdmin, setShowAdmin] = useState(false); // Admin panel toggle
+  const [showAdmin, setShowAdmin] = useState(false);
+  
+  // Sorting Control (Moved to parent)
+  const [sortField, setSortField] = useState<SortField>('position');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   
   // Pagination / Limit for Grid View
   const [displayLimit, setDisplayLimit] = useState(20);
@@ -57,21 +61,15 @@ export default function Home() {
   }, [allMonths]);
 
   const handleFileUpload = async (files: FileList, dateOverride?: string) => {
-    // Validate manual date selection
-    if (dateOverride === '') { // If empty string passed but manual mode was likely intended (though component handles this)
-        // Just proceed, parser will fallback to filename or today
-    }
+    if (dateOverride === '') { }
     
     setIsProcessing(true);
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        // Pass dateOverride to parser
         const { parsedData } = await parseCsvFile(file, dateOverride);
-        
         const result = await saveRankingData(parsedData);
         if (!result.success) {
-          console.error('Server Save Error Details:', result.error);
           throw new Error(`Failed to save data to database: ${result.error}`);
         }
       }
@@ -86,16 +84,11 @@ export default function Home() {
   };
   
   const handleDeleteMonth = async (month: string) => {
-    if (!confirm(`${month} のデータを完全に削除しますか？\nこの操作は取り消せません。`)) {
-      return;
-    }
-    
+    if (!confirm(`${month} のデータを完全に削除しますか？\nこの操作は取り消せません。`)) { return; }
     setIsProcessing(true);
     try {
       const result = await deleteRankingDataByMonth(month);
-      if (!result.success) {
-        throw new Error(result.error as string);
-      }
+      if (!result.success) throw new Error(result.error as string);
       await fetchData();
       alert(`${month} のデータを削除しました。`);
     } catch (error: any) {
@@ -107,21 +100,12 @@ export default function Home() {
   };
 
   const handleDeleteAll = async () => {
-    // 1st Confirmation
-    if (!confirm('【警告】すべてのデータを削除しますか？\n登録されているキーワードと順位履歴がすべて消去されます。')) {
-      return;
-    }
-    // 2nd Confirmation
-    if (!confirm('本当に削除してよろしいですか？\nこの操作は絶対に取り消せません。')) {
-      return;
-    }
-
+    if (!confirm('【警告】すべてのデータを削除しますか？\n登録されているキーワードと順位履歴がすべて消去されます。')) { return; }
+    if (!confirm('本当に削除してよろしいですか？\nこの操作は絶対に取り消せません。')) { return; }
     setIsProcessing(true);
     try {
       const result = await deleteAllData();
-      if (!result.success) {
-        throw new Error(result.error as string);
-      }
+      if (!result.success) throw new Error(result.error as string);
       await fetchData();
       alert('すべてのデータを削除しました。');
       setShowAdmin(false);
@@ -135,27 +119,68 @@ export default function Home() {
 
   const handleToggleSelect = (keyword: string) => {
     setSelectedKeywords((prev) => {
-      if (prev.includes(keyword)) {
-        return prev.filter((k) => k !== keyword);
-      } else {
-        if (prev.length >= 20) {
-          alert('手動選択できるキーワードは最大20個までです。');
-          return prev;
-        }
-        return [...prev, keyword];
+      if (prev.includes(keyword)) return prev.filter((k) => k !== keyword);
+      if (prev.length >= 20) {
+        alert('手動選択できるキーワードは最大20個までです。');
+        return prev;
       }
+      return [...prev, keyword];
     });
   };
 
+  const handleSortChange = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      // Set default order based on field
+      if (field === 'volume' || field === 'diff') {
+        setSortOrder('desc'); // High volume/diff first usually
+      } else {
+        setSortOrder('asc'); // Rank 1 is "lowest number" but highest rank
+      }
+    }
+  };
+
   const filteredData = useMemo(() => {
-    let result = data;
+    let result = [...data]; // Create a shallow copy to sort
     if (filterText) {
-      result = data.filter((item) =>
+      result = result.filter((item) =>
         item.keyword.toLowerCase().includes(filterText.toLowerCase())
       );
     }
-    return result.sort((a, b) => (a.latestPosition ?? 999) - (b.latestPosition ?? 999));
-  }, [data, filterText]);
+    
+    // Sort Logic
+    result.sort((a, b) => {
+      let valA: any = '';
+      let valB: any = '';
+
+      switch (sortField) {
+        case 'keyword':
+          valA = a.keyword;
+          valB = b.keyword;
+          break;
+        case 'volume':
+          valA = a.volume;
+          valB = b.volume;
+          break;
+        case 'position':
+          valA = a.latestPosition ?? 999;
+          valB = b.latestPosition ?? 999;
+          break;
+        case 'diff':
+          valA = a.latestDiff ?? 0;
+          valB = b.latestDiff ?? 0;
+          break;
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [data, filterText, sortField, sortOrder]);
 
   const listChartData = useMemo(() => {
     return data.filter((item) => selectedKeywords.includes(item.keyword));
@@ -206,11 +231,9 @@ export default function Home() {
           </div>
         </div>
         
-        {/* Admin Panel */}
+        {/* Admin Panel ... (omitted same code) ... */}
         {showAdmin && (
           <div className="bg-red-50 border border-red-200 p-6 rounded-lg animate-in fade-in slide-in-from-top-2 space-y-6">
-            
-            {/* Monthly Deletion */}
             <div>
               <h3 className="text-sm font-bold text-red-800 mb-3 flex items-center gap-2">
                 <Trash2 size={16} />
@@ -219,7 +242,6 @@ export default function Home() {
               <p className="text-xs text-red-600 mb-4">
                 指定した月のデータを削除します。キーワード自体は残ります。
               </p>
-              
               {allMonths.length === 0 ? (
                  <div className="text-sm text-gray-500">削除可能なデータがありません。</div>
               ) : (
@@ -238,8 +260,6 @@ export default function Home() {
                 </div>
               )}
             </div>
-
-            {/* Delete All Data */}
             <div className="border-t border-red-200 pt-4 mt-4">
                <h3 className="text-sm font-bold text-red-900 mb-3 flex items-center gap-2">
                 <AlertTriangle size={16} />
@@ -254,7 +274,6 @@ export default function Home() {
                 <Trash2 size={16} />
               </button>
             </div>
-
           </div>
         )}
 
@@ -267,10 +286,11 @@ export default function Home() {
           </div>
         )}
 
-        {/* Controls (Search Filter) */}
+        {/* Controls (Search Filter & Sort) */}
         {data.length > 0 && (
-          <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-            <div className="relative">
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
+            {/* Search */}
+            <div className="relative w-full sm:w-auto flex-1">
               <input
                 type="text"
                 placeholder="キーワードを検索..."
@@ -281,6 +301,28 @@ export default function Home() {
               <div className="absolute right-3 top-2.5 text-gray-400 text-xs">
                 {filteredData.length} 件
               </div>
+            </div>
+
+            {/* Sort Control */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <span className="text-sm text-gray-500 whitespace-nowrap">並び順:</span>
+              <select
+                value={sortField}
+                onChange={(e) => handleSortChange(e.target.value as SortField)}
+                className="block w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500"
+              >
+                <option value="position">順位</option>
+                <option value="volume">ボリューム</option>
+                <option value="diff">変動幅</option>
+                <option value="keyword">キーワード</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-600"
+                title={sortOrder === 'asc' ? "昇順" : "降順"}
+              >
+                <ArrowUpDown size={16} className={sortOrder === 'asc' ? "" : "transform rotate-180"} />
+              </button>
             </div>
           </div>
         )}
@@ -309,6 +351,9 @@ export default function Home() {
                   data={filteredData}
                   selectedKeywords={selectedKeywords}
                   onToggleSelect={handleToggleSelect}
+                  sortField={sortField} // Pass current sort
+                  sortOrder={sortOrder} // Pass current order
+                  onSortChange={handleSortChange} // Allow table headers to change sort
                 />
               </div>
             ) : (
