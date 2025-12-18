@@ -56,12 +56,18 @@ export default function Home() {
      return [...allMonths].sort();
   }, [allMonths]);
 
-  const handleFileUpload = async (files: FileList) => {
+  const handleFileUpload = async (files: FileList, dateOverride?: string) => {
+    // Validate manual date selection
+    if (dateOverride === '') { // If empty string passed but manual mode was likely intended (though component handles this)
+        // Just proceed, parser will fallback to filename or today
+    }
+    
     setIsProcessing(true);
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const { parsedData } = await parseCsvFile(file);
+        // Pass dateOverride to parser
+        const { parsedData } = await parseCsvFile(file, dateOverride);
         
         const result = await saveRankingData(parsedData);
         if (!result.success) {
