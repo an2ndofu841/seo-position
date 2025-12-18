@@ -10,7 +10,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { KeywordHistory } from '../types';
-import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankCardProps {
@@ -27,6 +27,10 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
 
   const latestUrl = data.history[allMonths[allMonths.length - 1]]?.url;
   const isAI = data.history[allMonths[allMonths.length - 1]]?.isAIOverview;
+  
+  // 期間の取得
+  const startMonth = allMonths[0];
+  const endMonth = allMonths[allMonths.length - 1];
 
   const getDiffIcon = (diff: number | null) => {
     if (diff === null || diff === 0) return <Minus className="w-3 h-3 text-gray-400" />;
@@ -35,27 +39,35 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col h-[200px] hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col h-[220px] hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1 min-w-0 pr-2">
           <h3 className="text-sm font-bold text-gray-800 truncate" title={data.keyword}>
             {data.keyword}
           </h3>
-          <div className="flex items-center gap-2 mt-1">
-             <div className="text-2xl font-bold text-gray-900 leading-none">
-              {data.latestPosition ?? '-'}
-              <span className="text-xs font-normal text-gray-500 ml-1">位</span>
-            </div>
-            <div className="flex items-center text-xs font-medium bg-gray-50 px-1.5 py-0.5 rounded">
-              {getDiffIcon(data.latestDiff)}
-              <span className={clsx("ml-1", 
-                (data.latestDiff ?? 0) > 0 ? "text-green-600" : 
-                (data.latestDiff ?? 0) < 0 ? "text-red-600" : "text-gray-500"
-              )}>
-                {data.latestDiff ? Math.abs(data.latestDiff) : '-'}
-              </span>
-            </div>
+          <div className="flex items-center justify-between mt-1">
+             <div className="flex items-center gap-2">
+               <div className="text-2xl font-bold text-gray-900 leading-none">
+                {data.latestPosition ?? '-'}
+                <span className="text-xs font-normal text-gray-500 ml-1">位</span>
+              </div>
+              <div className="flex items-center text-xs font-medium bg-gray-50 px-1.5 py-0.5 rounded">
+                {getDiffIcon(data.latestDiff)}
+                <span className={clsx("ml-1", 
+                  (data.latestDiff ?? 0) > 0 ? "text-green-600" : 
+                  (data.latestDiff ?? 0) < 0 ? "text-red-600" : "text-gray-500"
+                )}>
+                  {data.latestDiff ? Math.abs(data.latestDiff) : '-'}
+                </span>
+              </div>
+             </div>
+             
+             {/* Volume moved here */}
+             <div className="text-xs text-gray-400 flex items-center gap-1" title="Volume">
+                <BarChart3 size={12} />
+                {data.volume.toLocaleString()}
+             </div>
           </div>
         </div>
         <div className="flex gap-1 flex-shrink-0">
@@ -73,7 +85,7 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
       </div>
 
       {/* Mini Chart */}
-      <div className="flex-1 w-full min-h-0 relative">
+      <div className="flex-1 w-full min-h-0 relative mb-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -87,16 +99,15 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
               hide={false}
               width={25}
               tick={{ fontSize: 10, fill: '#9ca3af' }}
-              tickCount={3} // 1, 50, 100 roughly
+              tickCount={3}
               interval="preserveStartEnd"
             />
-            {/* 10位のラインを目立たせる */}
             <ReferenceLine y={10} stroke="#e5e7eb" strokeDasharray="3 3" />
             
             <Tooltip 
               contentStyle={{ fontSize: '12px', padding: '4px 8px' }}
               labelStyle={{ display: 'none' }}
-              formatter={(value: any) => [`${value}位`, 'Rank']}
+              formatter={(value: any, name: any, props: any) => [`${value}位`, props.payload.name]}
             />
             <Line
               type="monotone"
@@ -112,10 +123,10 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
         </ResponsiveContainer>
       </div>
       
-      {/* Footer Info */}
-      <div className="mt-2 text-xs text-gray-400 flex justify-between">
-        <span>Vol: {data.volume.toLocaleString()}</span>
-        <span>{allMonths[allMonths.length - 1]}</span>
+      {/* Footer Info: Start Month --- End Month */}
+      <div className="mt-1 pt-2 border-t border-gray-100 flex justify-between text-[10px] text-gray-400 font-medium">
+        <span>{startMonth}</span>
+        <span>{endMonth}</span>
       </div>
     </div>
   );
