@@ -30,7 +30,7 @@ const RANGES = [
   { key: 'range91_100', label: '91位〜100位', min: 91, max: 100, color: '#b91c1c' }, // red-700
 ];
 
-import { Crown, Trophy, Target, BarChart3 } from 'lucide-react';
+import { Crown, Trophy, Target, BarChart3, Bot } from 'lucide-react';
 
 export const RankingDistributionChart: React.FC<RankingDistributionChartProps> = ({ data, allMonths }) => {
   const latestStats = useMemo(() => {
@@ -42,18 +42,27 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
     let rank1 = 0;
     let rank2 = 0;
     let rank3 = 0;
+    let aioCount = 0;
 
     data.forEach(kwd => {
-      const pos = kwd.history[latestMonth]?.position;
+      const historyItem = kwd.history[latestMonth];
+      const pos = historyItem?.position;
+      
       if (pos && pos <= 100) {
         totalRanked++;
         if (pos === 1) rank1++;
         if (pos === 2) rank2++;
         if (pos === 3) rank3++;
       }
+      
+      // AIO Count (whether ranked or not, if flagged)
+      // Usually AIO implies ranking, but check the flag specifically
+      if (historyItem?.isAIOverview) {
+        aioCount++;
+      }
     });
 
-    return { totalRanked, rank1, rank2, rank3, month: latestMonth };
+    return { totalRanked, rank1, rank2, rank3, aioCount, month: latestMonth };
   }, [data, allMonths]);
 
   const chartData = useMemo(() => {
@@ -111,7 +120,7 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
     <div className="space-y-6">
       {/* Summary Cards */}
       {latestStats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col items-center justify-center">
              <div className="text-gray-500 text-sm font-medium mb-1 flex items-center gap-1">
                <BarChart3 size={16} />
@@ -140,6 +149,13 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
                3位 KWD数
              </div>
              <div className="text-3xl font-bold text-gray-800">{latestStats.rank3}</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col items-center justify-center">
+             <div className="text-purple-600 text-sm font-medium mb-1 flex items-center gap-1">
+               <Bot size={16} />
+               AIO引用数
+             </div>
+             <div className="text-3xl font-bold text-gray-800">{latestStats.aioCount}</div>
           </div>
         </div>
       )}
