@@ -30,7 +30,32 @@ const RANGES = [
   { key: 'range91_100', label: '91位〜100位', min: 91, max: 100, color: '#b91c1c' }, // red-700
 ];
 
+import { Crown, Trophy, Target, BarChart3 } from 'lucide-react';
+
 export const RankingDistributionChart: React.FC<RankingDistributionChartProps> = ({ data, allMonths }) => {
+  const latestStats = useMemo(() => {
+    if (allMonths.length === 0) return null;
+    const sortedMonths = [...allMonths].sort();
+    const latestMonth = sortedMonths[sortedMonths.length - 1];
+
+    let totalRanked = 0;
+    let rank1 = 0;
+    let rank2 = 0;
+    let rank3 = 0;
+
+    data.forEach(kwd => {
+      const pos = kwd.history[latestMonth]?.position;
+      if (pos && pos <= 100) {
+        totalRanked++;
+        if (pos === 1) rank1++;
+        if (pos === 2) rank2++;
+        if (pos === 3) rank3++;
+      }
+    });
+
+    return { totalRanked, rank1, rank2, rank3, month: latestMonth };
+  }, [data, allMonths]);
+
   const chartData = useMemo(() => {
     const sortedMonths = [...allMonths].sort();
     
@@ -83,11 +108,48 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
   if (data.length === 0) return null;
 
   return (
-    <div className="w-full bg-white p-6 rounded-lg shadow border border-gray-200">
-      <h3 className="text-lg font-semibold mb-6 text-gray-800">
-        順位分布推移 (積み上げ棒グラフ)
-      </h3>
-      <div className="w-full h-[500px]">
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      {latestStats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col items-center justify-center">
+             <div className="text-gray-500 text-sm font-medium mb-1 flex items-center gap-1">
+               <BarChart3 size={16} />
+               総獲得KWD数
+             </div>
+             <div className="text-3xl font-bold text-gray-800">{latestStats.totalRanked}</div>
+             <div className="text-xs text-gray-400 mt-1">{latestStats.month}</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col items-center justify-center">
+             <div className="text-yellow-600 text-sm font-medium mb-1 flex items-center gap-1">
+               <Crown size={16} className="fill-yellow-500 text-yellow-500" />
+               1位 KWD数
+             </div>
+             <div className="text-3xl font-bold text-gray-800">{latestStats.rank1}</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col items-center justify-center">
+             <div className="text-gray-500 text-sm font-medium mb-1 flex items-center gap-1">
+               <Trophy size={16} className="fill-gray-400 text-gray-400" />
+               2位 KWD数
+             </div>
+             <div className="text-3xl font-bold text-gray-800">{latestStats.rank2}</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200 flex flex-col items-center justify-center">
+             <div className="text-orange-600 text-sm font-medium mb-1 flex items-center gap-1">
+               <Target size={16} className="fill-orange-500 text-orange-500" />
+               3位 KWD数
+             </div>
+             <div className="text-3xl font-bold text-gray-800">{latestStats.rank3}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Chart */}
+      <div className="w-full bg-white p-6 rounded-lg shadow border border-gray-200">
+        <h3 className="text-lg font-semibold mb-6 text-gray-800">
+          順位分布推移 (積み上げ棒グラフ)
+        </h3>
+        <div className="w-full h-[500px]">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <ComposedChart
             data={chartData}
@@ -158,6 +220,7 @@ export const RankingDistributionChart: React.FC<RankingDistributionChartProps> =
 
           </ComposedChart>
         </ResponsiveContainer>
+      </div>
       </div>
     </div>
   );
