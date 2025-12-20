@@ -56,14 +56,14 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
         
         // Canvas生成
         const canvas = await html2canvas(pageEl, {
-          scale: 1, // 高解像度すぎるとファイルサイズが大きくなるので等倍
+          scale: 2, // 解像度向上のため2倍でレンダリング
           useCORS: true,
           logging: false,
           width: 1920,
           height: 1080,
           windowWidth: 1920,
           windowHeight: 1080,
-          backgroundColor: '#f3f4f6', // bg-gray-100
+          backgroundColor: '#ffffff', // 背景を白に
         } as any); // Type definition for scale might be missing in some versions
 
         const imgData = canvas.toDataURL('image/jpeg', 0.8); // 品質80%
@@ -116,7 +116,7 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
           visibility: isGenerating ? 'visible' : 'hidden', // visibility:hiddenでもhtml2canvasは動くが、描画崩れのリスクがあるため
           // 画面外に配置してレンダリングさせる
           transform: 'translateX(-200vw)', 
-          backgroundColor: '#f3f4f6',
+          backgroundColor: '#ffffff',
           overflow: 'hidden'
         }}
       >
@@ -124,7 +124,7 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
           {pages.map((pageData, pageIndex) => (
             <div 
               key={pageIndex}
-              className="w-[1920px] h-[1080px] p-12 bg-gray-100 flex flex-col relative page-break-after-always"
+              className="w-[1920px] h-[1080px] p-12 bg-white flex flex-col relative page-break-after-always"
             >
               {/* Header */}
               <div className="flex justify-between items-end mb-8 border-b border-gray-300 pb-4">
