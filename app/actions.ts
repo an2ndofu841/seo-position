@@ -24,9 +24,23 @@ export async function getSites(): Promise<Site[]> {
 export async function createSite(name: string, url?: string) {
   try {
     const supabase = await createNoCookieClient();
+    
+    // Automatically fetch favicon if URL is provided
+    let favicon = '';
+    if (url) {
+      try {
+        // Simple favicon fetching: Google Favicon API
+        // Format: https://www.google.com/s2/favicons?domain=example.com&sz=64
+        const domain = new URL(url).hostname;
+        favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+      } catch (e) {
+        console.error('Invalid URL for favicon:', url);
+      }
+    }
+
     const { data, error } = await supabase
       .from('sites')
-      .insert({ name, url })
+      .insert({ name, url, favicon })
       .select()
       .single();
 
@@ -34,6 +48,39 @@ export async function createSite(name: string, url?: string) {
     return { success: true, data };
   } catch (error: any) {
     console.error('Create Site Error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateSite(siteId: string, updates: { name?: string; url?: string }) {
+  try {
+    const supabase = await createNoCookieClient();
+    
+    const updateData: any = { ...updates };
+    
+    // Update favicon if URL changed
+    if (updates.url) {
+      try {
+        const domain = new URL(updates.url).hostname;
+        updateData.favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+      } catch (e) {
+        console.error('Invalid URL for favicon:', updates.url);
+        // Don't update favicon if URL is invalid, or maybe clear it?
+        // updateData.favicon = null;
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('sites')
+      .update(updateData)
+      .eq('id', siteId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Update Site Error:', error);
     return { success: false, error: error.message };
   }
 }

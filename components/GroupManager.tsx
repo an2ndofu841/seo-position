@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { KeywordGroup, Site } from '../types';
-import { Plus, Trash2, Folder, List, X, Globe, ChevronDown, Check, MoreVertical } from 'lucide-react';
+import { Plus, Trash2, Folder, List, X, Globe, ChevronDown, Check, MoreVertical, Edit2, Link as LinkIcon, Save } from 'lucide-react';
 
 interface GroupManagerProps {
   groups: KeywordGroup[];
@@ -13,7 +13,8 @@ interface GroupManagerProps {
   sites: Site[];
   currentSiteId: string | null;
   onSelectSite: (siteId: string) => void;
-  onCreateSite: (name: string) => Promise<void>;
+  onCreateSite: (name: string, url?: string) => Promise<void>;
+  onUpdateSite: (siteId: string, updates: { name?: string; url?: string }) => Promise<void>;
   onDeleteSite: (siteId: string) => Promise<void>;
 
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
   currentSiteId,
   onSelectSite,
   onCreateSite,
+  onUpdateSite,
   onDeleteSite,
   isOpen,
   onToggle,
@@ -40,8 +42,15 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
 
   // Site State
   const [isSiteMenuOpen, setIsSiteMenuOpen] = useState(false);
-  const [newSiteName, setNewSiteName] = useState('');
   const [isCreatingSite, setIsCreatingSite] = useState(false);
+  const [newSiteName, setNewSiteName] = useState('');
+  const [newSiteUrl, setNewSiteUrl] = useState('');
+  
+  // Site Editing State
+  const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
+  const [editSiteName, setEditSiteName] = useState('');
+  const [editSiteUrl, setEditSiteUrl] = useState('');
+
   const siteMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,6 +58,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
       if (siteMenuRef.current && !siteMenuRef.current.contains(event.target as Node)) {
         setIsSiteMenuOpen(false);
         setIsCreatingSite(false);
+        setEditingSiteId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -67,9 +77,23 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
   const handleCreateSite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSiteName.trim()) return;
-    await onCreateSite(newSiteName);
+    await onCreateSite(newSiteName, newSiteUrl);
     setNewSiteName('');
+    setNewSiteUrl('');
     setIsCreatingSite(false);
+  };
+
+  const startEditingSite = (site: Site) => {
+    setEditingSiteId(site.id);
+    setEditSiteName(site.name);
+    setEditSiteUrl(site.url || '');
+  };
+
+  const handleUpdateSite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSiteId || !editSiteName.trim()) return;
+    await onUpdateSite(editingSiteId, { name: editSiteName, url: editSiteUrl });
+    setEditingSiteId(null);
   };
 
   const currentSite = sites.find(s => s.id === currentSiteId);
@@ -91,7 +115,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
           z-30 h-full bg-white border-r border-gray-200 
           transition-all duration-300 ease-in-out
           flex flex-col shrink-0
-          ${isOpen ? 'w-64 translate-x-0' : '-translate-x-full md:translate-x-0 md:w-0 md:border-r-0 md:overflow-hidden'}
+          ${isOpen ? 'w-72 translate-x-0' : '-translate-x-full md:translate-x-0 md:w-0 md:border-r-0 md:overflow-hidden'}
         `}
       >
         {/* Site Selector Header */}
@@ -102,7 +126,11 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
                className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm hover:border-blue-400 transition-colors"
              >
                <div className="flex items-center gap-2 min-w-0">
-                 <Globe size={16} className="text-blue-600 shrink-0" />
+                 {currentSite?.favicon ? (
+                   <img src={currentSite.favicon} alt="" className="w-4 h-4 rounded-sm" />
+                 ) : (
+                   <Globe size={16} className="text-blue-600 shrink-0" />
+                 )}
                  <span className="font-bold text-gray-800 truncate">
                    {currentSite ? currentSite.name : 'サイトを選択'}
                  </span>
@@ -112,63 +140,140 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
 
              {/* Dropdown Menu */}
              {isSiteMenuOpen && (
-               <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 overflow-hidden">
-                 <div className="max-h-60 overflow-y-auto">
+               <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 overflow-hidden max-h-[80vh] flex flex-col">
+                 <div className="overflow-y-auto flex-1">
                    {sites.map(site => (
                      <div 
                        key={site.id}
-                       className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 cursor-pointer group"
-                       onClick={() => {
-                         onSelectSite(site.id);
-                         setIsSiteMenuOpen(false);
-                       }}
+                       className="border-b border-gray-100 last:border-0"
                      >
-                       <div className="flex items-center gap-2 truncate">
-                         {site.id === currentSiteId && <Check size={14} className="text-blue-600" />}
-                         <span className={`text-sm ${site.id === currentSiteId ? 'font-bold text-blue-700' : 'text-gray-700'}`}>
-                           {site.name}
-                         </span>
-                       </div>
-                       {sites.length > 1 && (
-                         <button
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             if (confirm(`サイト「${site.name}」とそのデータを全て削除しますか？`)) {
-                               onDeleteSite(site.id);
-                             }
+                       {editingSiteId === site.id ? (
+                         <form onSubmit={handleUpdateSite} className="p-2 bg-blue-50">
+                           <input
+                             type="text"
+                             placeholder="サイト名"
+                             value={editSiteName}
+                             onChange={(e) => setEditSiteName(e.target.value)}
+                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded mb-1 focus:ring-2 focus:ring-blue-500"
+                             autoFocus
+                           />
+                           <input
+                             type="url"
+                             placeholder="URL (https://...)"
+                             value={editSiteUrl}
+                             onChange={(e) => setEditSiteUrl(e.target.value)}
+                             className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-2 focus:ring-2 focus:ring-blue-500 text-gray-600"
+                           />
+                           <div className="flex justify-end gap-2">
+                             <button
+                               type="button"
+                               onClick={() => setEditingSiteId(null)}
+                               className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-200 rounded"
+                             >
+                               キャンセル
+                             </button>
+                             <button
+                               type="submit"
+                               className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
+                             >
+                               <Save size={12} /> 保存
+                             </button>
+                           </div>
+                         </form>
+                       ) : (
+                         <div 
+                           className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 cursor-pointer group"
+                           onClick={() => {
+                             onSelectSite(site.id);
+                             setIsSiteMenuOpen(false);
                            }}
-                           className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 p-1"
                          >
-                           <Trash2 size={14} />
-                         </button>
+                           <div className="flex items-center gap-2 truncate min-w-0 flex-1">
+                             {site.id === currentSiteId && <Check size={14} className="text-blue-600 shrink-0" />}
+                             <div className="flex items-center gap-2 min-w-0 flex-1">
+                                {site.favicon ? (
+                                  <img src={site.favicon} alt="" className="w-4 h-4 rounded-sm shrink-0" />
+                                ) : (
+                                  <Globe size={14} className="text-gray-400 shrink-0" />
+                                )}
+                                <div className="flex flex-col min-w-0">
+                                  <span className={`text-sm truncate ${site.id === currentSiteId ? 'font-bold text-blue-700' : 'text-gray-700'}`}>
+                                    {site.name}
+                                  </span>
+                                  {site.url && (
+                                    <span className="text-[10px] text-gray-400 truncate">{new URL(site.url).hostname}</span>
+                                  )}
+                                </div>
+                             </div>
+                           </div>
+                           
+                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 startEditingSite(site);
+                               }}
+                               className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50"
+                               title="編集"
+                             >
+                               <Edit2 size={12} />
+                             </button>
+                             {sites.length > 1 && (
+                               <button
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   if (confirm(`サイト「${site.name}」とそのデータを全て削除しますか？`)) {
+                                     onDeleteSite(site.id);
+                                   }
+                                 }}
+                                 className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
+                                 title="削除"
+                               >
+                                 <Trash2 size={12} />
+                               </button>
+                             )}
+                           </div>
+                         </div>
                        )}
                      </div>
                    ))}
                  </div>
                  
                  {/* Add New Site */}
-                 <div className="border-t border-gray-100 p-2">
+                 <div className="border-t border-gray-100 p-2 bg-gray-50">
                    {isCreatingSite ? (
-                     <form onSubmit={handleCreateSite} className="flex gap-2">
+                     <form onSubmit={handleCreateSite} className="flex flex-col gap-2">
                        <input
                          type="text"
                          placeholder="サイト名"
                          value={newSiteName}
                          onChange={(e) => setNewSiteName(e.target.value)}
-                         className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                          autoFocus
                        />
-                       <button 
-                         type="submit"
-                         className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                       >
-                         <Plus size={16} />
-                       </button>
+                       <div className="flex gap-2">
+                         <div className="relative flex-1">
+                           <LinkIcon size={12} className="absolute left-2 top-2 text-gray-400" />
+                           <input
+                             type="url"
+                             placeholder="URL (任意)"
+                             value={newSiteUrl}
+                             onChange={(e) => setNewSiteUrl(e.target.value)}
+                             className="w-full pl-6 pr-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                           />
+                         </div>
+                         <button 
+                           type="submit"
+                           className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 shrink-0"
+                         >
+                           <Plus size={16} />
+                         </button>
+                       </div>
                      </form>
                    ) : (
                      <button
                        onClick={() => setIsCreatingSite(true)}
-                       className="w-full flex items-center justify-center gap-2 px-2 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                       className="w-full flex items-center justify-center gap-2 px-2 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors border border-dashed border-blue-300 bg-white"
                      >
                        <Plus size={16} />
                        新しいサイトを追加

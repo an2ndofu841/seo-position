@@ -43,6 +43,7 @@ export interface Site {
   id: string;
   name: string;
   url?: string;
+  favicon?: string;
   created_at?: string;
 }
 

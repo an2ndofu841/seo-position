@@ -13,7 +13,7 @@ import { parseCsvFile } from '@/utils/csvParser';
 import { 
   saveRankingData, getRankingData, deleteRankingDataByMonth, deleteAllData,
   createGroup, deleteGroup, addKeywordsToGroup, removeKeywordsFromGroup, getGroups,
-  getSites, createSite, deleteSite
+  getSites, createSite, deleteSite, updateSite
 } from '@/app/actions';
 import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu, PieChart } from 'lucide-react';
 
@@ -116,10 +116,10 @@ export default function Home() {
 
   // --- Site Actions ---
 
-  const handleCreateSite = async (name: string) => {
+  const handleCreateSite = async (name: string, url?: string) => {
     setIsProcessing(true);
     try {
-      const result = await createSite(name);
+      const result = await createSite(name, url);
       if (!result.success) throw new Error(result.error);
       
       const newSites = await getSites();
@@ -128,6 +128,21 @@ export default function Home() {
       if (result.data?.id) setCurrentSiteId(result.data.id);
     } catch (error: any) {
       alert(`サイト作成失敗: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleUpdateSite = async (siteId: string, updates: { name?: string; url?: string }) => {
+    setIsProcessing(true);
+    try {
+      const result = await updateSite(siteId, updates);
+      if (!result.success) throw new Error(result.error);
+      
+      const newSites = await getSites();
+      setSites(newSites);
+    } catch (error: any) {
+      alert(`サイト更新失敗: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -382,6 +397,7 @@ export default function Home() {
         currentSiteId={currentSiteId}
         onSelectSite={setCurrentSiteId}
         onCreateSite={handleCreateSite}
+        onUpdateSite={handleUpdateSite}
         onDeleteSite={handleDeleteSite}
 
         isOpen={isSidebarOpen}
@@ -409,11 +425,19 @@ export default function Home() {
                 </button>
                 <div>
                   <h1 className="text-xl md:text-2xl font-bold text-gray-800">SEO Rank Visualizer</h1>
-                  <p className="text-gray-500 text-xs md:text-sm mt-1">
+                  <p className="text-gray-500 text-xs md:text-sm mt-1 flex items-center gap-2">
                     キーワード順位の推移を可視化・分析
                     {currentSiteId && sites.find(s => s.id === currentSiteId) && (
-                      <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
-                        {sites.find(s => s.id === currentSiteId)?.name}
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        {(() => {
+                          const s = sites.find(s => s.id === currentSiteId);
+                          return (
+                            <>
+                              {s?.favicon && <img src={s.favicon} alt="" className="w-3 h-3 rounded-sm" />}
+                              {s?.name}
+                            </>
+                          );
+                        })()}
                       </span>
                     )}
                   </p>
