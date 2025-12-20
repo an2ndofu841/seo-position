@@ -35,6 +35,9 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
     if (!printRef.current || data.length === 0) return;
     setIsGenerating(true);
 
+    // レンダリングとスタイル適用（visibility: visible）を待つための待機時間
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     try {
       // 1920x1080 px のPDFを作成
       const pdf = new jsPDF({
