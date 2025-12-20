@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { KeywordGroup } from '../types';
-import { Plus, Trash2, Folder, List, Menu, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { KeywordGroup, Site } from '../types';
+import { Plus, Trash2, Folder, List, X, Globe, ChevronDown, Check, MoreVertical } from 'lucide-react';
 
 interface GroupManagerProps {
   groups: KeywordGroup[];
@@ -8,6 +8,14 @@ interface GroupManagerProps {
   onSelectGroup: (groupId: string | null) => void;
   onCreateGroup: (name: string) => Promise<void>;
   onDeleteGroup: (groupId: string) => Promise<void>;
+  
+  // Site Props
+  sites: Site[];
+  currentSiteId: string | null;
+  onSelectSite: (siteId: string) => void;
+  onCreateSite: (name: string) => Promise<void>;
+  onDeleteSite: (siteId: string) => Promise<void>;
+
   isOpen: boolean;
   onToggle: () => void;
 }
@@ -18,20 +26,53 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
   onSelectGroup,
   onCreateGroup,
   onDeleteGroup,
+  sites,
+  currentSiteId,
+  onSelectSite,
+  onCreateSite,
+  onDeleteSite,
   isOpen,
   onToggle,
 }) => {
+  // Group State
   const [newGroupName, setNewGroupName] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  // Site State
+  const [isSiteMenuOpen, setIsSiteMenuOpen] = useState(false);
+  const [newSiteName, setNewSiteName] = useState('');
+  const [isCreatingSite, setIsCreatingSite] = useState(false);
+  const siteMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (siteMenuRef.current && !siteMenuRef.current.contains(event.target as Node)) {
+        setIsSiteMenuOpen(false);
+        setIsCreatingSite(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGroupName.trim()) return;
-    setIsCreating(true);
+    setIsCreatingGroup(true);
     await onCreateGroup(newGroupName);
     setNewGroupName('');
-    setIsCreating(false);
+    setIsCreatingGroup(false);
   };
+
+  const handleCreateSite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSiteName.trim()) return;
+    await onCreateSite(newSiteName);
+    setNewSiteName('');
+    setIsCreatingSite(false);
+  };
+
+  const currentSite = sites.find(s => s.id === currentSiteId);
 
   return (
     <>
@@ -53,7 +94,94 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
           ${isOpen ? 'w-64 translate-x-0' : '-translate-x-full md:translate-x-0 md:w-0 md:border-r-0 md:overflow-hidden'}
         `}
       >
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+        {/* Site Selector Header */}
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+           <div className="relative" ref={siteMenuRef}>
+             <button 
+               onClick={() => setIsSiteMenuOpen(!isSiteMenuOpen)}
+               className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm hover:border-blue-400 transition-colors"
+             >
+               <div className="flex items-center gap-2 min-w-0">
+                 <Globe size={16} className="text-blue-600 shrink-0" />
+                 <span className="font-bold text-gray-800 truncate">
+                   {currentSite ? currentSite.name : 'サイトを選択'}
+                 </span>
+               </div>
+               <ChevronDown size={16} className="text-gray-400 shrink-0" />
+             </button>
+
+             {/* Dropdown Menu */}
+             {isSiteMenuOpen && (
+               <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 overflow-hidden">
+                 <div className="max-h-60 overflow-y-auto">
+                   {sites.map(site => (
+                     <div 
+                       key={site.id}
+                       className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 cursor-pointer group"
+                       onClick={() => {
+                         onSelectSite(site.id);
+                         setIsSiteMenuOpen(false);
+                       }}
+                     >
+                       <div className="flex items-center gap-2 truncate">
+                         {site.id === currentSiteId && <Check size={14} className="text-blue-600" />}
+                         <span className={`text-sm ${site.id === currentSiteId ? 'font-bold text-blue-700' : 'text-gray-700'}`}>
+                           {site.name}
+                         </span>
+                       </div>
+                       {sites.length > 1 && (
+                         <button
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             if (confirm(`サイト「${site.name}」とそのデータを全て削除しますか？`)) {
+                               onDeleteSite(site.id);
+                             }
+                           }}
+                           className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 p-1"
+                         >
+                           <Trash2 size={14} />
+                         </button>
+                       )}
+                     </div>
+                   ))}
+                 </div>
+                 
+                 {/* Add New Site */}
+                 <div className="border-t border-gray-100 p-2">
+                   {isCreatingSite ? (
+                     <form onSubmit={handleCreateSite} className="flex gap-2">
+                       <input
+                         type="text"
+                         placeholder="サイト名"
+                         value={newSiteName}
+                         onChange={(e) => setNewSiteName(e.target.value)}
+                         className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                         autoFocus
+                       />
+                       <button 
+                         type="submit"
+                         className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                       >
+                         <Plus size={16} />
+                       </button>
+                     </form>
+                   ) : (
+                     <button
+                       onClick={() => setIsCreatingSite(true)}
+                       className="w-full flex items-center justify-center gap-2 px-2 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                     >
+                       <Plus size={16} />
+                       新しいサイトを追加
+                     </button>
+                   )}
+                 </div>
+               </div>
+             )}
+           </div>
+        </div>
+
+        {/* Playlist Header */}
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
           <h2 className="text-sm font-bold text-gray-700 flex items-center gap-2">
             <Folder size={16} />
             <span className="truncate">プレイリスト</span>
@@ -63,8 +191,9 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
           </button>
         </div>
         
+        {/* Playlist Create Form */}
         <div className="p-4 pt-2">
-          <form onSubmit={handleCreate} className="flex gap-2">
+          <form onSubmit={handleCreateGroup} className="flex gap-2">
             <input
               type="text"
               placeholder="新規作成"
@@ -74,7 +203,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
             />
             <button
               type="submit"
-              disabled={isCreating || !newGroupName.trim()}
+              disabled={isCreatingGroup || !newGroupName.trim()}
               className="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300"
             >
               <Plus size={16} />
@@ -82,6 +211,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
           </form>
         </div>
 
+        {/* Playlist List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           <button
             onClick={() => {
@@ -136,4 +266,3 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
     </>
   );
 };
-

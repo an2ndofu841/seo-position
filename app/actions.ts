@@ -1,16 +1,67 @@
 'use server';
 
 import { createNoCookieClient } from '@/utils/supabase/server';
-import { KeywordHistory, MonthlyData, ParsedCsvData, KeywordGroup } from '@/types';
+import { KeywordHistory, MonthlyData, ParsedCsvData, KeywordGroup, Site } from '@/types';
+
+// --- Site Actions ---
+
+export async function getSites(): Promise<Site[]> {
+  try {
+    const supabase = await createNoCookieClient();
+    const { data, error } = await supabase
+      .from('sites')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Get Sites Error:', error);
+    return [];
+  }
+}
+
+export async function createSite(name: string, url?: string) {
+  try {
+    const supabase = await createNoCookieClient();
+    const { data, error } = await supabase
+      .from('sites')
+      .insert({ name, url })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Create Site Error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteSite(siteId: string) {
+  try {
+    const supabase = await createNoCookieClient();
+    const { error } = await supabase
+      .from('sites')
+      .delete()
+      .eq('id', siteId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    console.error('Delete Site Error:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 // --- Group Actions ---
 
-export async function createGroup(name: string) {
+export async function createGroup(name: string, siteId: string) {
   try {
     const supabase = await createNoCookieClient();
     const { data, error } = await supabase
       .from('groups')
-      .insert({ name })
+      .insert({ name, site_id: siteId })
       .select()
       .single();
 
@@ -75,10 +126,10 @@ export async function removeKeywordsFromGroup(groupId: string, keywordIds: strin
   }
 }
 
-export async function getGroups(): Promise<KeywordGroup[]> {
+export async function getGroups(siteId: string): Promise<KeywordGroup[]> {
   try {
     const supabase = await createNoCookieClient();
-    // Get groups and their keywords
+    // Get groups for the specific site
     const { data, error } = await supabase
       .from('groups')
       .select(`
@@ -90,7 +141,8 @@ export async function getGroups(): Promise<KeywordGroup[]> {
             keyword
           )
         )
-      `);
+      `)
+      .eq('site_id', siteId);
 
     if (error) throw error;
     if (!data) return [];
@@ -98,7 +150,6 @@ export async function getGroups(): Promise<KeywordGroup[]> {
     return data.map((g: any) => ({
       id: g.id,
       name: g.name,
-      // Map joined data to simple string array of keywords for filtering
       keywords: g.group_members
         .map((kg: any) => kg.keywords?.keyword)
         .filter((k: any) => k !== null)
@@ -109,9 +160,9 @@ export async function getGroups(): Promise<KeywordGroup[]> {
   }
 }
 
-// --- Existing Actions ---
+// --- Data Actions ---
 
-export async function deleteRankingDataByMonth(monthStr: string) {
+export async function deleteRankingDataByMonth(monthStr: string, siteId: string) {
   try {
     const supabase = await createNoCookieClient();
     const targetDate = `${monthStr}-01`;
@@ -120,22 +171,32 @@ export async function deleteRankingDataByMonth(monthStr: string) {
       throw new Error('Invalid date format. Use YYYY-MM');
     }
 
-    console.log(`Attempting to delete rankings for date: ${targetDate}`);
+    // Need to find rankings that belong to keywords of this site
+    // Delete rankings via join is tricky in Supabase basic API, usually done via IN clause
+    
+    // 1. Get Keyword IDs for this site
+    const { data: keywords, error: kwError } = await supabase
+      .from('keywords')
+      .select('id')
+      .eq('site_id', siteId);
 
+    if (kwError) throw kwError;
+    const keywordIds = keywords.map(k => k.id);
+
+    if (keywordIds.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    // 2. Delete rankings for these keywords and date
     const { error, count } = await supabase
       .from('rankings')
       .delete({ count: 'exact' })
-      .eq('ranking_date', targetDate);
+      .eq('ranking_date', targetDate)
+      .in('keyword_id', keywordIds);
 
     if (error) {
       console.error('Delete Error:', error);
       throw new Error(`Delete Failed: ${error.message}`);
-    }
-
-    console.log(`Deleted ${count} records.`);
-    
-    if (count === 0) {
-       return { success: false, error: '削除対象が見つからないか、削除権限がありません(RLSポリシーを確認してください)。' };
     }
 
     return { success: true, count };
@@ -145,33 +206,28 @@ export async function deleteRankingDataByMonth(monthStr: string) {
   }
 }
 
-export async function deleteAllData() {
+export async function deleteAllData(siteId: string) {
   try {
     const supabase = await createNoCookieClient();
 
-    const { error: rankError, count: rankCount } = await supabase
-      .from('rankings')
-      .delete({ count: 'exact' })
-      .not('id', 'is', null);
-    
-    if (rankError) {
-       throw new Error(`Ranking Delete Failed: ${rankError.message}`);
-    }
-
+    // Delete keywords for this site (cascade will delete rankings and group members)
     const { error: kwdError, count: kwdCount } = await supabase
       .from('keywords')
       .delete({ count: 'exact' })
-      .not('id', 'is', null);
+      .eq('site_id', siteId);
 
     if (kwdError) {
       throw new Error(`Keyword Delete Failed: ${kwdError.message}`);
     }
 
-    if (rankCount === 0 && kwdCount === 0) {
-        const { count: checkCount } = await supabase.from('keywords').select('*', { count: 'exact', head: true });
-        if (checkCount && checkCount > 0) {
-            return { success: false, error: '削除権限がありません(RLSポリシーを確認してください)。' };
-        }
+    // Also delete groups for this site
+    const { error: groupError } = await supabase
+      .from('groups')
+      .delete()
+      .eq('site_id', siteId);
+      
+    if (groupError) {
+       console.error('Group Delete Warning:', groupError);
     }
 
     return { success: true };
@@ -181,7 +237,7 @@ export async function deleteAllData() {
   }
 }
 
-export async function saveRankingData(data: ParsedCsvData[]) {
+export async function saveRankingData(data: ParsedCsvData[], siteId: string) {
   try {
     const supabase = await createNoCookieClient();
     
@@ -192,14 +248,16 @@ export async function saveRankingData(data: ParsedCsvData[]) {
     const uniqueKeywords = Array.from(new Map(data.map(item => [item.keyword, item])).values());
     
     const keywordUpsertData = uniqueKeywords.map(item => ({
+      site_id: siteId,
       keyword: item.keyword,
       volume: item.volume, 
       updated_at: new Date().toISOString(),
     }));
 
+    // Upsert keywords with (site_id, keyword) constraint
     const { data: keywordResults, error: keywordError } = await supabase
       .from('keywords')
-      .upsert(keywordUpsertData, { onConflict: 'keyword' })
+      .upsert(keywordUpsertData, { onConflict: 'site_id, keyword' })
       .select('id, keyword');
 
     if (keywordError) {
@@ -244,7 +302,7 @@ export async function saveRankingData(data: ParsedCsvData[]) {
   }
 }
 
-export async function getRankingData(): Promise<KeywordHistory[]> {
+export async function getRankingData(siteId: string): Promise<KeywordHistory[]> {
   try {
     const supabase = await createNoCookieClient();
 
@@ -253,6 +311,7 @@ export async function getRankingData(): Promise<KeywordHistory[]> {
       return [];
     }
 
+    // Fetch keywords only for the specific site
     const { data: keywords, error } = await supabase
       .from('keywords')
       .select(`
@@ -265,7 +324,8 @@ export async function getRankingData(): Promise<KeywordHistory[]> {
           url,
           is_ai_overview
         )
-      `);
+      `)
+      .eq('site_id', siteId);
 
     if (error) {
       console.error('Fetch Error:', error);
@@ -308,12 +368,13 @@ export async function getRankingData(): Promise<KeywordHistory[]> {
       }
 
       return {
-        id: k.id, // Add ID
+        id: k.id, 
         keyword: k.keyword,
         volume: k.volume,
         history,
         latestPosition: currentPos,
         latestDiff: diff,
+        siteId: siteId
       };
     });
 

@@ -21,6 +21,7 @@ export interface KeywordHistory {
   latestPosition: number | null;
   latestDiff: number | null;
   isNew?: boolean; 
+  siteId?: string; // Associated site
 }
 
 export interface ParsedCsvData {
@@ -35,7 +36,14 @@ export interface ParsedCsvData {
 export interface KeywordGroup {
   id: string;
   name: string;
-  keywords: string[]; // List of keyword strings (or IDs, but strings are easier for frontend filtering currently)
+  keywords: string[]; // List of keyword strings
+}
+
+export interface Site {
+  id: string;
+  name: string;
+  url?: string;
+  created_at?: string;
 }
 
 export type SortField = 'keyword' | 'volume' | 'position' | 'diff';

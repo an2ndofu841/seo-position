@@ -8,20 +8,26 @@ import { RankCard } from '@/components/RankCard';
 import { RankingDistributionChart } from '@/components/RankingDistributionChart';
 import { GroupManager } from '@/components/GroupManager';
 import { PdfExportButton } from '@/components/PdfExportButton';
-import { KeywordHistory, SortField, SortOrder, KeywordGroup } from '@/types';
+import { KeywordHistory, SortField, SortOrder, KeywordGroup, Site } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
 import { 
   saveRankingData, getRankingData, deleteRankingDataByMonth, deleteAllData,
-  createGroup, deleteGroup, addKeywordsToGroup, removeKeywordsFromGroup, getGroups
+  createGroup, deleteGroup, addKeywordsToGroup, removeKeywordsFromGroup, getGroups,
+  getSites, createSite, deleteSite
 } from '@/app/actions';
 import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu, PieChart } from 'lucide-react';
 
 type ViewMode = 'list' | 'grid' | 'summary';
 
 export default function Home() {
+  // Site State
+  const [sites, setSites] = useState<Site[]>([]);
+  const [currentSiteId, setCurrentSiteId] = useState<string | null>(null);
+
+  // Data State
   const [data, setData] = useState<KeywordHistory[]>([]);
   const [groups, setGroups] = useState<KeywordGroup[]>([]);
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]); // For chart comparison or group actions
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -33,7 +39,6 @@ export default function Home() {
 
   // Group Control
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null); // null means "All"
-  const [newGroupName, setNewGroupName] = useState('');
   
   // Sorting Control
   const [sortField, setSortField] = useState<SortField>('position');
@@ -42,17 +47,51 @@ export default function Home() {
   // Pagination
   const [displayLimit, setDisplayLimit] = useState(20);
 
-  // Load data
+  // 1. Initial Load: Fetch Sites
   useEffect(() => {
-    fetchData();
+    loadSites();
   }, []);
 
-  const fetchData = async () => {
+  const loadSites = async () => {
+    setIsLoading(true);
+    try {
+      const sitesData = await getSites();
+      setSites(sitesData);
+      
+      // Select first site if none selected, or ensure selection is valid
+      if (sitesData.length > 0) {
+        if (!currentSiteId || !sitesData.find(s => s.id === currentSiteId)) {
+          setCurrentSiteId(sitesData[0].id);
+        }
+      } else {
+         // Create default site if none exists (migration should handle this, but safe fallback)
+         // Actually, let's assume getSites returns at least one if migration ran
+         setCurrentSiteId(null);
+      }
+    } catch (error) {
+      console.error('Failed to load sites:', error);
+    } finally {
+      // Loading state for data will be handled by the next useEffect
+    }
+  };
+
+  // 2. Fetch Data when Site Changes
+  useEffect(() => {
+    if (currentSiteId) {
+      fetchData(currentSiteId);
+    } else {
+      setData([]);
+      setGroups([]);
+      setIsLoading(false);
+    }
+  }, [currentSiteId]);
+
+  const fetchData = async (siteId: string) => {
     setIsLoading(true);
     try {
       const [serverData, groupsData] = await Promise.all([
-        getRankingData(),
-        getGroups()
+        getRankingData(siteId),
+        getGroups(siteId)
       ]);
       setData(serverData);
       setGroups(groupsData);
@@ -75,19 +114,58 @@ export default function Home() {
      return [...allMonths].sort();
   }, [allMonths]);
 
-  // --- Actions ---
+  // --- Site Actions ---
+
+  const handleCreateSite = async (name: string) => {
+    setIsProcessing(true);
+    try {
+      const result = await createSite(name);
+      if (!result.success) throw new Error(result.error);
+      
+      const newSites = await getSites();
+      setSites(newSites);
+      // Switch to new site
+      if (result.data?.id) setCurrentSiteId(result.data.id);
+    } catch (error: any) {
+      alert(`サイト作成失敗: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteSite = async (siteId: string) => {
+    setIsProcessing(true);
+    try {
+      const result = await deleteSite(siteId);
+      if (!result.success) throw new Error(result.error);
+      
+      const newSites = await getSites();
+      setSites(newSites);
+      
+      if (currentSiteId === siteId) {
+        setCurrentSiteId(newSites.length > 0 ? newSites[0].id : null);
+      }
+    } catch (error: any) {
+      alert(`サイト削除失敗: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // --- Data Actions ---
 
   const handleFileUpload = async (files: FileList, dateOverride?: string) => {
-    if (dateOverride === '') { }
+    if (!currentSiteId) return alert('サイトを選択してください。');
+    
     setIsProcessing(true);
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const { parsedData } = await parseCsvFile(file, dateOverride);
-        const result = await saveRankingData(parsedData);
+        const result = await saveRankingData(parsedData, currentSiteId);
         if (!result.success) throw new Error(`Failed to save: ${result.error}`);
       }
-      await fetchData();
+      await fetchData(currentSiteId);
       alert('データのアップロードと保存が完了しました。');
     } catch (error: any) {
       console.error('Error:', error);
@@ -98,12 +176,14 @@ export default function Home() {
   };
   
   const handleDeleteMonth = async (month: string) => {
+    if (!currentSiteId) return;
     if (!confirm(`${month} のデータを完全に削除しますか？\nこの操作は取り消せません。`)) { return; }
+    
     setIsProcessing(true);
     try {
-      const result = await deleteRankingDataByMonth(month);
+      const result = await deleteRankingDataByMonth(month, currentSiteId);
       if (!result.success) throw new Error(result.error as string);
-      await fetchData();
+      await fetchData(currentSiteId);
       alert(`${month} のデータを削除しました。`);
     } catch (error: any) {
       console.error('Delete error:', error);
@@ -114,13 +194,15 @@ export default function Home() {
   };
 
   const handleDeleteAll = async () => {
-    if (!confirm('【警告】すべてのデータを削除しますか？\n登録されているキーワードと順位履歴がすべて消去されます。')) { return; }
+    if (!currentSiteId) return;
+    if (!confirm('【警告】現在のサイトのすべてのデータを削除しますか？\n登録されているキーワードと順位履歴がすべて消去されます。')) { return; }
     if (!confirm('本当に削除してよろしいですか？\nこの操作は絶対に取り消せません。')) { return; }
+    
     setIsProcessing(true);
     try {
-      const result = await deleteAllData();
+      const result = await deleteAllData(currentSiteId);
       if (!result.success) throw new Error(result.error as string);
-      await fetchData();
+      await fetchData(currentSiteId);
       alert('すべてのデータを削除しました。');
       setShowAdmin(false);
     } catch (error: any) {
@@ -132,17 +214,15 @@ export default function Home() {
   };
 
   // Group Actions
-  const handleCreateGroup = async (name?: string) => {
-    const targetName = name || newGroupName;
-    if (!targetName?.trim()) return;
+  const handleCreateGroup = async (name: string) => {
+    if (!currentSiteId) return;
     
     setIsProcessing(true);
     try {
-      const result = await createGroup(targetName);
+      const result = await createGroup(name, currentSiteId);
       if (!result.success) throw new Error(result.error);
-      setNewGroupName('');
       // Refresh groups
-      const newGroups = await getGroups();
+      const newGroups = await getGroups(currentSiteId);
       setGroups(newGroups);
     } catch (error: any) {
       alert(`作成失敗: ${error.message}`);
@@ -152,13 +232,14 @@ export default function Home() {
   };
 
   const handleDeleteGroup = async (groupId: string) => {
+    if (!currentSiteId) return;
     if (!confirm('このグループを削除しますか？（キーワード自体は削除されません）')) return;
     setIsProcessing(true);
     try {
       const result = await deleteGroup(groupId);
       if (!result.success) throw new Error(result.error);
       if (selectedGroupId === groupId) setSelectedGroupId(null);
-      const newGroups = await getGroups();
+      const newGroups = await getGroups(currentSiteId);
       setGroups(newGroups);
     } catch (error: any) {
       alert(`削除失敗: ${error.message}`);
@@ -168,9 +249,9 @@ export default function Home() {
   };
 
   const handleAddToGroup = async (groupId: string) => {
+    if (!currentSiteId) return;
     if (selectedKeywords.length === 0) return;
     
-    // Find IDs for selected keywords
     const targetIds = data
       .filter(d => selectedKeywords.includes(d.keyword))
       .map(d => d.id)
@@ -183,9 +264,9 @@ export default function Home() {
       const result = await addKeywordsToGroup(groupId, targetIds);
       if (!result.success) throw new Error(result.error);
       alert(`${targetIds.length}個のキーワードをグループに追加しました。`);
-      const newGroups = await getGroups();
+      const newGroups = await getGroups(currentSiteId);
       setGroups(newGroups);
-      setSelectedKeywords([]); // Clear selection
+      setSelectedKeywords([]); 
     } catch (error: any) {
       alert(`追加失敗: ${error.message}`);
     } finally {
@@ -194,12 +275,13 @@ export default function Home() {
   };
 
   const handleSingleAddToGroup = async (groupId: string, keywordId: string) => {
+    if (!currentSiteId) return;
     setIsProcessing(true);
     try {
       const result = await addKeywordsToGroup(groupId, [keywordId]);
       if (!result.success) throw new Error(result.error);
       
-      const newGroups = await getGroups();
+      const newGroups = await getGroups(currentSiteId);
       setGroups(newGroups);
     } catch (error: any) {
       alert(`追加失敗: ${error.message}`);
@@ -212,7 +294,6 @@ export default function Home() {
   const handleToggleSelect = (keyword: string) => {
     setSelectedKeywords((prev) => {
       if (prev.includes(keyword)) return prev.filter((k) => k !== keyword);
-      // Removed selection limit for group operations
       return [...prev, keyword];
     });
   };
@@ -282,11 +363,9 @@ export default function Home() {
   }, [data, filterText, sortField, sortOrder, selectedGroupId, groups]);
 
   const listChartData = useMemo(() => {
-    // If keywords selected manually, show them
     if (selectedKeywords.length > 0) {
       return data.filter((item) => selectedKeywords.includes(item.keyword));
     }
-    // Otherwise show top of filtered list (if reasonable size)
     return [];
   }, [data, selectedKeywords]);
 
@@ -298,6 +377,13 @@ export default function Home() {
         onSelectGroup={setSelectedGroupId}
         onCreateGroup={handleCreateGroup}
         onDeleteGroup={handleDeleteGroup}
+        
+        sites={sites}
+        currentSiteId={currentSiteId}
+        onSelectSite={setCurrentSiteId}
+        onCreateSite={handleCreateSite}
+        onDeleteSite={handleDeleteSite}
+
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
@@ -325,6 +411,11 @@ export default function Home() {
                   <h1 className="text-xl md:text-2xl font-bold text-gray-800">SEO Rank Visualizer</h1>
                   <p className="text-gray-500 text-xs md:text-sm mt-1">
                     キーワード順位の推移を可視化・分析
+                    {currentSiteId && sites.find(s => s.id === currentSiteId) && (
+                      <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        {sites.find(s => s.id === currentSiteId)?.name}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -380,7 +471,7 @@ export default function Home() {
             <div>
               <h3 className="text-sm font-bold text-red-800 mb-3 flex items-center gap-2">
                 <Trash2 size={16} />
-                月別データの削除
+                月別データの削除 ({currentSiteId ? sites.find(s => s.id === currentSiteId)?.name : '未選択'})
               </h3>
               {allMonths.length === 0 ? (
                  <div className="text-sm text-gray-500">削除可能なデータがありません。</div>
@@ -406,7 +497,7 @@ export default function Home() {
                 disabled={isProcessing}
                 className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-md text-sm font-bold hover:bg-red-700 transition-colors shadow-sm flex items-center justify-center gap-2"
               >
-                すべてのデータを削除（初期化）
+                サイト内の全データを削除
                 <Trash2 size={16} />
               </button>
             </div>
@@ -555,7 +646,9 @@ export default function Home() {
         ) : (
           !isProcessing && (
             <div className="text-center py-20 text-gray-400">
-              データがありません。CSVファイルをアップロードしてください。
+              {sites.length === 0 
+                ? 'サイトがありません。サイドバーからサイトを作成してください。'
+                : 'データがありません。CSVファイルをアップロードしてください。'}
             </div>
           )
         )}
