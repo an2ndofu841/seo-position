@@ -117,7 +117,9 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
           // 画面外に配置してレンダリングさせる
           transform: 'translateX(-200vw)', 
           backgroundColor: '#ffffff',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          fontFamily: 'Arial, Helvetica, sans-serif', // フォントを明示
+          WebkitFontSmoothing: 'antialiased', // フォントレンダリングを滑らかに
         }}
       >
         <div ref={printRef}>
