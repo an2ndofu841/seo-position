@@ -10,15 +10,16 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { KeywordHistory } from '../types';
-import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3, Crown, Search } from 'lucide-react';
+import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3, Crown, Search, Edit3 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankCardProps {
   data: KeywordHistory;
   allMonths: string[];
+  onManualEntry?: (keyword: string) => void;
 }
 
-export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
+export const RankCard: React.FC<RankCardProps> = ({ data, allMonths, onManualEntry }) => {
   // チャート用データ変換
   const chartData = allMonths.map((month) => ({
     name: month,
@@ -151,9 +152,24 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths }) => {
       </div>
       
       {/* Footer Info: Start Month --- End Month */}
-      <div className="mt-1 pt-2 border-t border-gray-100 flex justify-between text-[10px] text-gray-400 font-medium">
-        <span>{startMonth}</span>
-        <span>{endMonth}</span>
+      <div className="mt-1 pt-2 border-t border-gray-100 flex justify-between items-center text-[10px] text-gray-400 font-medium">
+        <div className="flex gap-2">
+          <span>{startMonth}</span>
+          <span>-</span>
+          <span>{endMonth}</span>
+        </div>
+        {onManualEntry && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onManualEntry(data.keyword);
+            }}
+            className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-blue-600 transition-colors"
+            title="順位データ追加"
+          >
+            <Edit3 size={12} />
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { KeywordHistory, SortField, SortOrder, KeywordGroup } from '../types';
-import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink, Crown, MoreHorizontal, Plus, Check } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink, Crown, MoreHorizontal, Plus, Check, Edit3 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankTableProps {
@@ -9,6 +9,7 @@ interface RankTableProps {
   selectedKeywords: string[];
   onToggleSelect: (keyword: string) => void;
   onAddToGroup: (groupId: string, keywordId: string) => void;
+  onManualEntry: (keyword: string) => void; // New prop
   // Sorting props from parent
   sortField?: SortField;
   sortOrder?: SortOrder;
@@ -21,6 +22,7 @@ export const RankTable: React.FC<RankTableProps> = ({
   selectedKeywords,
   onToggleSelect,
   onAddToGroup,
+  onManualEntry,
   sortField = 'position',
   sortOrder = 'asc',
   onSortChange,
@@ -198,23 +200,36 @@ export const RankTable: React.FC<RankTableProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative group-row">
-                    {/* Add to Playlist Button - Show on Hover or when active */}
-                    <div className="relative inline-block">
+                    <div className="flex justify-end gap-2">
+                      {/* Manual Entry Button */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActivePopoverKeyword(activePopoverKeyword === item.keyword ? null : item.keyword);
+                          onManualEntry(item.keyword);
                         }}
-                        className={clsx(
-                          "p-1.5 rounded-full transition-all duration-200 border",
-                          activePopoverKeyword === item.keyword 
-                            ? "bg-blue-100 text-blue-600 border-blue-200 opacity-100" 
-                            : "bg-white text-gray-400 border-gray-200 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover/tr:opacity-100"
-                        )}
-                        title="プレイリストに追加"
+                        className="p-1.5 rounded-full transition-all duration-200 border bg-white text-gray-400 border-gray-200 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover/tr:opacity-100"
+                        title="順位データ追加"
                       >
-                        <Plus size={16} />
+                        <Edit3 size={16} />
                       </button>
+
+                      {/* Add to Playlist Button - Show on Hover or when active */}
+                      <div className="relative inline-block">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActivePopoverKeyword(activePopoverKeyword === item.keyword ? null : item.keyword);
+                          }}
+                          className={clsx(
+                            "p-1.5 rounded-full transition-all duration-200 border",
+                            activePopoverKeyword === item.keyword 
+                              ? "bg-blue-100 text-blue-600 border-blue-200 opacity-100" 
+                              : "bg-white text-gray-400 border-gray-200 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover/tr:opacity-100"
+                          )}
+                          title="プレイリストに追加"
+                        >
+                          <Plus size={16} />
+                        </button>
 
                       {/* Popover Menu */}
                       {activePopoverKeyword === item.keyword && (

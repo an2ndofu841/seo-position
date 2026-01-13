@@ -332,10 +332,16 @@ export default function Home() {
 
     if (result.success) {
       await fetchData(currentSiteId);
-      alert('登録しました');
+      // alert('登録しました'); // Alert removed for smoother flow if triggered from row
     } else {
       alert(`登録失敗: ${result.error}`);
     }
+  };
+
+  // Helper to open modal with pre-filled keyword
+  const openManualEntryModal = (keyword?: string) => {
+    setManualInputInitialKeyword(keyword || '');
+    setIsInputModalOpen(true);
   };
 
   // UI Handlers
@@ -479,10 +485,7 @@ export default function Home() {
           
           <div className="flex items-center gap-4">
              <button
-               onClick={() => {
-                 setManualInputInitialKeyword('');
-                 setIsInputModalOpen(true);
-               }}
+               onClick={() => openManualEntryModal('')}
                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors"
              >
                <Plus size={18} />
@@ -680,6 +683,7 @@ export default function Home() {
                   selectedKeywords={selectedKeywords}
                   onToggleSelect={handleToggleSelect}
                   onAddToGroup={handleSingleAddToGroup}
+                  onManualEntry={openManualEntryModal} // Pass the handler
                   sortField={sortField}
                   sortOrder={sortOrder}
                   onSortChange={handleSortChange}
@@ -693,7 +697,8 @@ export default function Home() {
                     <RankCard 
                       key={item.keyword} 
                       data={item} 
-                      allMonths={sortedMonthsForChart} 
+                      allMonths={sortedMonthsForChart}
+                      onManualEntry={openManualEntryModal} // Pass the handler
                     />
                   ))}
                 </div>
