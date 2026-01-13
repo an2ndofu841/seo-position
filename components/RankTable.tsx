@@ -261,9 +261,6 @@ export const RankTable: React.FC<RankTableProps> = ({
                                         e.stopPropagation();
                                         if (!added && item.id) {
                                           onAddToGroup(group.id, item.id);
-                                          // Keep menu open to allow multiple selections or close it? 
-                                          // Usually close is better UX for single action, but toggle might be better.
-                                          // For now, let's close it to show feedback.
                                           setActivePopoverKeyword(null);
                                         }
                                       }}
@@ -284,13 +281,14 @@ export const RankTable: React.FC<RankTableProps> = ({
                         </>
                       )}
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
-  );
+  </div>
+);
 };
