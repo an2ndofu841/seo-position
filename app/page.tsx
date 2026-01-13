@@ -18,6 +18,7 @@ import {
 } from '@/app/actions';
 import { manualAddRanking } from '@/app/actions_manual';
 import { fetchLatestRankings } from '@/app/actions_serp';
+import { deleteKeyword } from '@/app/actions';
 import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu, PieChart, Plus, RefreshCw } from 'lucide-react';
 
 type ViewMode = 'list' | 'grid' | 'summary';
@@ -355,6 +356,26 @@ export default function Home() {
       alert(`エラー: ${e.message}`);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteKeyword = async (keywordId: string, keyword: string) => {
+    if (!currentSiteId) return;
+    const confirmMsg = `「${keyword}」を削除しますか？\nこの操作は元に戻せません。`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const result = await deleteKeyword(keywordId);
+      if (result.success) {
+        // Optimistically remove from state or refetch
+        setData(prev => prev.filter(k => k.id !== keywordId));
+        // Also remove from selection if selected
+        setSelectedKeywords(prev => prev.filter(k => k !== keyword));
+      } else {
+        alert(`削除失敗: ${result.error}`);
+      }
+    } catch (e: any) {
+      alert(`エラー: ${e.message}`);
     }
   };
 
@@ -704,7 +725,8 @@ export default function Home() {
                   onToggleSelect={handleToggleSelect}
                   onAddToGroup={handleSingleAddToGroup}
                   onManualEntry={openManualEntryModal} 
-                  onRefreshRanking={handleRefreshRanking} // New handler
+                  onRefreshRanking={handleRefreshRanking}
+                  onDeleteKeyword={handleDeleteKeyword} // New handler
                   sortField={sortField}
                   sortOrder={sortOrder}
                   onSortChange={handleSortChange}
@@ -720,7 +742,8 @@ export default function Home() {
                       data={item} 
                       allMonths={sortedMonthsForChart}
                       onManualEntry={openManualEntryModal}
-                      onRefreshRanking={handleRefreshRanking} // New handler
+                      onRefreshRanking={handleRefreshRanking}
+                      onDeleteKeyword={handleDeleteKeyword} // New handler
                     />
                   ))}
                 </div>

@@ -10,7 +10,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { KeywordHistory } from '../types';
-import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3, Crown, Search, Edit3, RefreshCw } from 'lucide-react';
+import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3, Crown, Search, Edit3, RefreshCw, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankCardProps {
@@ -18,9 +18,10 @@ interface RankCardProps {
   allMonths: string[];
   onManualEntry?: (keyword: string) => void;
   onRefreshRanking?: (keyword: string) => void;
+  onDeleteKeyword?: (keywordId: string, keyword: string) => void;
 }
 
-export const RankCard: React.FC<RankCardProps> = ({ data, allMonths, onManualEntry, onRefreshRanking }) => {
+export const RankCard: React.FC<RankCardProps> = ({ data, allMonths, onManualEntry, onRefreshRanking, onDeleteKeyword }) => {
   // チャート用データ変換
   const chartData = allMonths.map((month) => ({
     name: month,
@@ -182,6 +183,18 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths, onManualEnt
               title="順位データ追加"
             >
               <Edit3 size={12} />
+            </button>
+          )}
+          {onDeleteKeyword && data.id && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteKeyword(data.id!, data.keyword);
+              }}
+              className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-red-600 transition-colors"
+              title="キーワードを削除"
+            >
+              <Trash2 size={12} />
             </button>
           )}
         </div>

@@ -241,6 +241,7 @@ export async function deleteRankingDataByMonth(monthStr: string, siteId: string)
       .eq('ranking_date', targetDate)
       .in('keyword_id', keywordIds);
 
+
     if (error) {
       console.error('Delete Error:', error);
       throw new Error(`Delete Failed: ${error.message}`);
@@ -280,6 +281,28 @@ export async function deleteAllData(siteId: string) {
     return { success: true };
   } catch (error: any) {
     console.error('Server Action Error (deleteAllData):', error);
+    return { success: false, error: error.message || String(error) };
+  }
+}
+
+export async function deleteKeyword(keywordId: string) {
+  try {
+    const supabase = await createNoCookieClient();
+    
+    // Deleting keyword will cascade to rankings and group_members
+    const { error } = await supabase
+      .from('keywords')
+      .delete()
+      .eq('id', keywordId);
+
+    if (error) {
+      console.error('Delete Keyword Error:', error);
+      throw new Error(`Delete Keyword Failed: ${error.message}`);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Server Action Error (deleteKeyword):', error);
     return { success: false, error: error.message || String(error) };
   }
 }

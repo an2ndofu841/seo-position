@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { KeywordHistory, SortField, SortOrder, KeywordGroup } from '../types';
-import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink, Crown, MoreHorizontal, Plus, Check, Edit3, RefreshCw } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink, Crown, MoreHorizontal, Plus, Check, Edit3, RefreshCw, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankTableProps {
@@ -10,7 +10,8 @@ interface RankTableProps {
   onToggleSelect: (keyword: string) => void;
   onAddToGroup: (groupId: string, keywordId: string) => void;
   onManualEntry: (keyword: string) => void;
-  onRefreshRanking?: (keyword: string) => void; // New prop
+  onRefreshRanking?: (keyword: string) => void;
+  onDeleteKeyword?: (keywordId: string, keyword: string) => void; // New prop
   // Sorting props from parent
   sortField?: SortField;
   sortOrder?: SortOrder;
@@ -25,6 +26,7 @@ export const RankTable: React.FC<RankTableProps> = ({
   onAddToGroup,
   onManualEntry,
   onRefreshRanking,
+  onDeleteKeyword,
   sortField = 'position',
   sortOrder = 'asc',
   onSortChange,
@@ -228,6 +230,20 @@ export const RankTable: React.FC<RankTableProps> = ({
                       >
                         <Edit3 size={16} />
                       </button>
+
+                      {/* Delete Button */}
+                      {onDeleteKeyword && item.id && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteKeyword(item.id!, item.keyword);
+                          }}
+                          className="p-1.5 rounded-full transition-all duration-200 border bg-white text-gray-400 border-gray-200 hover:text-red-600 hover:border-red-300 opacity-0 group-hover/tr:opacity-100"
+                          title="キーワードを削除"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
 
                       {/* Add to Playlist Button - Show on Hover or when active */}
                       <div className="relative inline-block">
