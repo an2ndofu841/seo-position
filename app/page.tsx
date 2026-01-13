@@ -17,7 +17,8 @@ import {
   getSites, createSite, deleteSite, updateSite
 } from '@/app/actions';
 import { manualAddRanking } from '@/app/actions_manual';
-import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu, PieChart, Plus } from 'lucide-react';
+import { fetchLatestRankings } from '@/app/actions_serp';
+import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu, PieChart, Plus, RefreshCw } from 'lucide-react';
 
 type ViewMode = 'list' | 'grid' | 'summary';
 
@@ -320,7 +321,6 @@ export default function Home() {
   }) => {
     if (!currentSiteId) return;
     
-    // Optimistic update or refresh logic
     const result = await manualAddRanking(
       currentSiteId,
       inputData.keyword,
@@ -332,9 +332,29 @@ export default function Home() {
 
     if (result.success) {
       await fetchData(currentSiteId);
-      // alert('登録しました'); // Alert removed for smoother flow if triggered from row
     } else {
       alert(`登録失敗: ${result.error}`);
+    }
+  };
+
+  const handleRefreshRanking = async (keyword: string) => {
+    if (!currentSiteId) return;
+    const confirmMsg = `「${keyword}」の最新順位を取得しますか？\n（SerpApiを使用します）`;
+    if (!confirm(confirmMsg)) return;
+
+    setIsProcessing(true);
+    try {
+      const result = await fetchLatestRankings(currentSiteId, keyword);
+      if (result.success) {
+        alert(`取得完了: ${result.position ? result.position + '位' : '圏外'}`);
+        await fetchData(currentSiteId);
+      } else {
+        alert(`取得失敗: ${result.error}`);
+      }
+    } catch (e: any) {
+      alert(`エラー: ${e.message}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -683,7 +703,8 @@ export default function Home() {
                   selectedKeywords={selectedKeywords}
                   onToggleSelect={handleToggleSelect}
                   onAddToGroup={handleSingleAddToGroup}
-                  onManualEntry={openManualEntryModal} // Pass the handler
+                  onManualEntry={openManualEntryModal} 
+                  onRefreshRanking={handleRefreshRanking} // New handler
                   sortField={sortField}
                   sortOrder={sortOrder}
                   onSortChange={handleSortChange}
@@ -698,7 +719,8 @@ export default function Home() {
                       key={item.keyword} 
                       data={item} 
                       allMonths={sortedMonthsForChart}
-                      onManualEntry={openManualEntryModal} // Pass the handler
+                      onManualEntry={openManualEntryModal}
+                      onRefreshRanking={handleRefreshRanking} // New handler
                     />
                   ))}
                 </div>

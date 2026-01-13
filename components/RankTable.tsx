@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { KeywordHistory, SortField, SortOrder, KeywordGroup } from '../types';
-import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink, Crown, MoreHorizontal, Plus, Check, Edit3 } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Bot, ExternalLink, Crown, MoreHorizontal, Plus, Check, Edit3, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankTableProps {
@@ -9,7 +9,8 @@ interface RankTableProps {
   selectedKeywords: string[];
   onToggleSelect: (keyword: string) => void;
   onAddToGroup: (groupId: string, keywordId: string) => void;
-  onManualEntry: (keyword: string) => void; // New prop
+  onManualEntry: (keyword: string) => void;
+  onRefreshRanking?: (keyword: string) => void; // New prop
   // Sorting props from parent
   sortField?: SortField;
   sortOrder?: SortOrder;
@@ -23,6 +24,7 @@ export const RankTable: React.FC<RankTableProps> = ({
   onToggleSelect,
   onAddToGroup,
   onManualEntry,
+  onRefreshRanking,
   sortField = 'position',
   sortOrder = 'asc',
   onSortChange,
@@ -201,6 +203,20 @@ export const RankTable: React.FC<RankTableProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative group-row">
                     <div className="flex justify-end gap-2">
+                      {/* Refresh Button */}
+                      {onRefreshRanking && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRefreshRanking(item.keyword);
+                          }}
+                          className="p-1.5 rounded-full transition-all duration-200 border bg-white text-gray-400 border-gray-200 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover/tr:opacity-100"
+                          title="最新順位を取得 (SerpApi)"
+                        >
+                          <RefreshCw size={16} />
+                        </button>
+                      )}
+
                       {/* Manual Entry Button */}
                       <button
                         onClick={(e) => {

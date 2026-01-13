@@ -10,16 +10,17 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { KeywordHistory } from '../types';
-import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3, Crown, Search, Edit3 } from 'lucide-react';
+import { Bot, ExternalLink, ArrowUp, ArrowDown, Minus, BarChart3, Crown, Search, Edit3, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RankCardProps {
   data: KeywordHistory;
   allMonths: string[];
   onManualEntry?: (keyword: string) => void;
+  onRefreshRanking?: (keyword: string) => void;
 }
 
-export const RankCard: React.FC<RankCardProps> = ({ data, allMonths, onManualEntry }) => {
+export const RankCard: React.FC<RankCardProps> = ({ data, allMonths, onManualEntry, onRefreshRanking }) => {
   // チャート用データ変換
   const chartData = allMonths.map((month) => ({
     name: month,
@@ -158,18 +159,32 @@ export const RankCard: React.FC<RankCardProps> = ({ data, allMonths, onManualEnt
           <span>-</span>
           <span>{endMonth}</span>
         </div>
-        {onManualEntry && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onManualEntry(data.keyword);
-            }}
-            className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-blue-600 transition-colors"
-            title="順位データ追加"
-          >
-            <Edit3 size={12} />
-          </button>
-        )}
+        <div className="flex gap-1">
+          {onRefreshRanking && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRefreshRanking(data.keyword);
+              }}
+              className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-blue-600 transition-colors"
+              title="最新順位を取得 (SerpApi)"
+            >
+              <RefreshCw size={12} />
+            </button>
+          )}
+          {onManualEntry && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onManualEntry(data.keyword);
+              }}
+              className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-blue-600 transition-colors"
+              title="順位データ追加"
+            >
+              <Edit3 size={12} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
