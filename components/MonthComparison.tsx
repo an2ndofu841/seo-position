@@ -209,29 +209,62 @@ export const MonthComparison: React.FC<MonthComparisonProps> = ({ data, allMonth
             </div>
           </div>
 
-          {/* Top Keyword Details */}
+          {/* Top Keyword Details - Side by Side */}
           <div className="space-y-4">
-             <h4 className="font-bold text-gray-700 border-b border-gray-200 pb-2">TOPキーワード内訳 ({monthB})</h4>
+             <h4 className="font-bold text-gray-700 border-b border-gray-200 pb-2">TOPキーワード内訳比較</h4>
              
-             <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100">
-               <div className="text-xs font-bold text-yellow-700 mb-1 flex items-center gap-1">
-                 <Crown size={12} className="fill-yellow-500" /> 1位獲得キーワード
-               </div>
-               <KeywordList keywords={statsB.rank1} colorClass="bg-white border-yellow-200 text-yellow-800" />
-             </div>
+             <div className="grid grid-cols-2 gap-4">
+                {/* Month A Column */}
+                <div className="space-y-4">
+                   <div className="text-center text-xs font-bold text-gray-500 mb-2">{monthA}</div>
+                   
+                   <div className="bg-yellow-50 p-2 rounded border border-yellow-100 min-h-[80px]">
+                     <div className="text-xs font-bold text-yellow-700 mb-1 flex items-center gap-1">
+                       <Crown size={12} className="fill-yellow-500" /> 1位
+                     </div>
+                     <KeywordList keywords={statsA.rank1} colorClass="bg-white border-yellow-200 text-yellow-800" />
+                   </div>
 
-             <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-               <div className="text-xs font-bold text-gray-600 mb-1 flex items-center gap-1">
-                 <Trophy size={12} className="fill-gray-400" /> 2位獲得キーワード
-               </div>
-               <KeywordList keywords={statsB.rank2} colorClass="bg-white border-gray-200 text-gray-700" />
-             </div>
+                   <div className="bg-gray-50 p-2 rounded border border-gray-200 min-h-[80px]">
+                     <div className="text-xs font-bold text-gray-600 mb-1 flex items-center gap-1">
+                       <Trophy size={12} className="fill-gray-400" /> 2位
+                     </div>
+                     <KeywordList keywords={statsA.rank2} colorClass="bg-white border-gray-200 text-gray-700" />
+                   </div>
 
-             <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
-               <div className="text-xs font-bold text-orange-700 mb-1 flex items-center gap-1">
-                 <Target size={12} className="fill-orange-500" /> 3位獲得キーワード
-               </div>
-               <KeywordList keywords={statsB.rank3} colorClass="bg-white border-orange-200 text-orange-800" />
+                   <div className="bg-orange-50 p-2 rounded border border-orange-100 min-h-[80px]">
+                     <div className="text-xs font-bold text-orange-700 mb-1 flex items-center gap-1">
+                       <Target size={12} className="fill-orange-500" /> 3位
+                     </div>
+                     <KeywordList keywords={statsA.rank3} colorClass="bg-white border-orange-200 text-orange-800" />
+                   </div>
+                </div>
+
+                {/* Month B Column */}
+                <div className="space-y-4">
+                   <div className="text-center text-xs font-bold text-blue-600 mb-2">{monthB}</div>
+
+                   <div className="bg-yellow-50 p-2 rounded border border-yellow-100 min-h-[80px]">
+                     <div className="text-xs font-bold text-yellow-700 mb-1 flex items-center gap-1">
+                       <Crown size={12} className="fill-yellow-500" /> 1位
+                     </div>
+                     <KeywordList keywords={statsB.rank1} colorClass="bg-white border-yellow-200 text-yellow-800" />
+                   </div>
+
+                   <div className="bg-gray-50 p-2 rounded border border-gray-200 min-h-[80px]">
+                     <div className="text-xs font-bold text-gray-600 mb-1 flex items-center gap-1">
+                       <Trophy size={12} className="fill-gray-400" /> 2位
+                     </div>
+                     <KeywordList keywords={statsB.rank2} colorClass="bg-white border-gray-200 text-gray-700" />
+                   </div>
+
+                   <div className="bg-orange-50 p-2 rounded border border-orange-100 min-h-[80px]">
+                     <div className="text-xs font-bold text-orange-700 mb-1 flex items-center gap-1">
+                       <Target size={12} className="fill-orange-500" /> 3位
+                     </div>
+                     <KeywordList keywords={statsB.rank3} colorClass="bg-white border-orange-200 text-orange-800" />
+                   </div>
+                </div>
              </div>
           </div>
         </div>
