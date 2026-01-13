@@ -23,7 +23,19 @@ export const GensparkExport: React.FC<GensparkExportProps> = ({ data, allMonths,
     // Let's ensure we get the latest two months correctly.
     const sortedMonths = [...allMonths].sort();
     const currentMonth = sortedMonths[sortedMonths.length - 1];
-    const prevMonth = sortedMonths.length > 1 ? sortedMonths[sortedMonths.length - 2] : null;
+    
+    // Find comparative months
+    const getMonthOffset = (targetMonth: string, offset: number) => {
+        const date = new Date(targetMonth + '-01');
+        date.setMonth(date.getMonth() - offset);
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+    };
+
+    const prevMonth = allMonths.includes(getMonthOffset(currentMonth, 1)) ? getMonthOffset(currentMonth, 1) : null;
+    const halfYearComparison = allMonths.includes(getMonthOffset(currentMonth, 6)) ? getMonthOffset(currentMonth, 6) : null;
+    const oneYearComparison = allMonths.includes(getMonthOffset(currentMonth, 12)) ? getMonthOffset(currentMonth, 12) : null;
 
     // --- Statistics Calculation ---
     const getStats = (month: string) => {
@@ -43,6 +55,8 @@ export const GensparkExport: React.FC<GensparkExportProps> = ({ data, allMonths,
 
     const currentStats = getStats(currentMonth);
     const prevStats = prevMonth ? getStats(prevMonth) : null;
+    const halfYearStats = halfYearComparison ? getStats(halfYearComparison) : null;
+    const oneYearStats = oneYearComparison ? getStats(oneYearComparison) : null;
 
     // --- Formatting the Prompt ---
     let prompt = `あなたはプロのSEOコンサルタントです。
@@ -52,7 +66,11 @@ Gensparkとして、最新のSEOトレンドやアルゴリズムの動向も踏
 
 【対象サイト】
 サイト名: ${siteName}
-対象月: ${currentMonth} (比較対象: ${prevMonth || 'なし'})
+対象月: ${currentMonth}
+比較対象: 
+${prevMonth ? `- 前月: ${prevMonth}` : ''}
+${halfYearComparison ? `- 半年前: ${halfYearComparison}` : ''}
+${oneYearComparison ? `- 1年前: ${oneYearComparison}` : ''}
 
 【順位サマリー】
 ■ ${currentMonth}の状況
@@ -65,15 +83,24 @@ Gensparkとして、最新のSEOトレンドやアルゴリズムの動向も踏
 
 `;
 
-    if (prevStats) {
-      prompt += `■ 前月(${prevMonth})との比較
-- 1位: ${prevStats.rank1.length} → ${currentStats.rank1.length} (${currentStats.rank1.length - prevStats.rank1.length > 0 ? '+' : ''}${currentStats.rank1.length - prevStats.rank1.length})
-- 2位: ${prevStats.rank2.length} → ${currentStats.rank2.length} (${currentStats.rank2.length - prevStats.rank2.length > 0 ? '+' : ''}${currentStats.rank2.length - prevStats.rank2.length})
-- 3位: ${prevStats.rank3.length} → ${currentStats.rank3.length} (${currentStats.rank3.length - prevStats.rank3.length > 0 ? '+' : ''}${currentStats.rank3.length - prevStats.rank3.length})
-- TOP10: ${prevStats.top10.length} → ${currentStats.top10.length} (${currentStats.top10.length - prevStats.top10.length > 0 ? '+' : ''}${currentStats.top10.length - prevStats.top10.length})
+    const addComparisonSection = (label: string, oldStats: any) => {
+        if (!oldStats) return '';
+        const diff = (curr: number, old: number) => {
+            const d = curr - old;
+            return `(${d > 0 ? '+' : ''}${d})`;
+        };
 
-`;
-    }
+        return `■ ${label}との比較
+- 1位: ${oldStats.rank1.length} → ${currentStats.rank1.length} ${diff(currentStats.rank1.length, oldStats.rank1.length)}
+- 2位: ${oldStats.rank2.length} → ${currentStats.rank2.length} ${diff(currentStats.rank2.length, oldStats.rank2.length)}
+- 3位: ${oldStats.rank3.length} → ${currentStats.rank3.length} ${diff(currentStats.rank3.length, oldStats.rank3.length)}
+- TOP10: ${oldStats.top10.length} → ${currentStats.top10.length} ${diff(currentStats.top10.length, oldStats.top10.length)}
+\n`;
+    };
+
+    if (prevStats) prompt += addComparisonSection(`前月(${prevMonth})`, prevStats);
+    if (halfYearStats) prompt += addComparisonSection(`半年前(${halfYearComparison})`, halfYearStats);
+    if (oneYearStats) prompt += addComparisonSection(`1年前(${oneYearComparison})`, oneYearStats);
 
     prompt += `【注目キーワード】
 ■ 現在1位のキーワード (一部抜粋)
@@ -98,10 +125,11 @@ ${[...currentStats.rank2, ...currentStats.rank3].slice(0, 20).map(d => `- ${d.ke
     prompt += `
 
 【依頼事項】
-1. 全体的な順位傾向の分析（好調・不調の要因推測）
-2. 特に成果が出ているキーワード群の特徴
-3. 惜しくもTOP3に入っていないキーワード（4位-10位、11位-20位）への具体的な改善提案
-4. 競合に勝つための、コンテンツSEOまたはテクニカルSEOの観点からのアドバイス
+1. 全体的な順位傾向の分析（前月・半年前・1年前からの推移を踏まえた分析）
+2. 長期的なトレンド分析（上昇・下降傾向にあるキーワード群の特定）
+3. 特に成果が出ているキーワード群の特徴
+4. 惜しくもTOP3に入っていないキーワード（4位-10位、11位-20位）への具体的な改善提案
+5. 競合に勝つための、コンテンツSEOまたはテクニカルSEOの観点からのアドバイス
 
 以上、よろしくお願いします。`;
 
