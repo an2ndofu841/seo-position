@@ -6,6 +6,7 @@ import { RankTable } from '@/components/RankTable';
 import { RankChart } from '@/components/RankChart';
 import { RankCard } from '@/components/RankCard';
 import { RankingDistributionChart } from '@/components/RankingDistributionChart';
+import { MonthComparison } from '@/components/MonthComparison';
 import { GroupManager } from '@/components/GroupManager';
 import { KeywordInputModal } from '@/components/KeywordInputModal';
 import { PdfExportButton } from '@/components/PdfExportButton';
@@ -765,6 +766,10 @@ export default function Home() {
                 <RankingDistributionChart 
                   data={filteredData} 
                   allMonths={sortedMonthsForChart} 
+                />
+                <MonthComparison 
+                  data={filteredData}
+                  allMonths={sortedMonthsForChart}
                 />
               </div>
             )}
