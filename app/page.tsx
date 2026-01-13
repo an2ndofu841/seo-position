@@ -7,6 +7,7 @@ import { RankChart } from '@/components/RankChart';
 import { RankCard } from '@/components/RankCard';
 import { RankingDistributionChart } from '@/components/RankingDistributionChart';
 import { MonthComparison } from '@/components/MonthComparison';
+import { StagnantKeywords } from '@/components/StagnantKeywords';
 import { GroupManager } from '@/components/GroupManager';
 import { KeywordInputModal } from '@/components/KeywordInputModal';
 import { PdfExportButton } from '@/components/PdfExportButton';
@@ -778,6 +779,10 @@ export default function Home() {
                 <MonthComparison 
                   data={filteredData}
                   allMonths={sortedMonthsForChart}
+                />
+                <StagnantKeywords 
+                  data={filteredData} 
+                  allMonths={sortedMonthsForChart} 
                 />
               </div>
             )}
