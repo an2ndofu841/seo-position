@@ -133,10 +133,10 @@ export const RankTable: React.FC<RankTableProps> = ({
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center">
-                      {crown && <span className="mr-2">{crown}</span>}
-                      <span className="text-sm font-medium text-gray-900">{item.keyword}</span>
+                      {crown && <span className="mr-2 shrink-0">{crown}</span>}
+                      <span className="text-sm font-medium text-gray-900 line-clamp-2" title={item.keyword}>{item.keyword}</span>
                       {item.isNew && (
-                        <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 shrink-0">
                           New
                         </span>
                       )}

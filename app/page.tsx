@@ -7,6 +7,7 @@ import { RankChart } from '@/components/RankChart';
 import { RankCard } from '@/components/RankCard';
 import { RankingDistributionChart } from '@/components/RankingDistributionChart';
 import { GroupManager } from '@/components/GroupManager';
+import { KeywordInputModal } from '@/components/KeywordInputModal';
 import { PdfExportButton } from '@/components/PdfExportButton';
 import { KeywordHistory, SortField, SortOrder, KeywordGroup, Site } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
@@ -15,7 +16,8 @@ import {
   createGroup, deleteGroup, addKeywordsToGroup, removeKeywordsFromGroup, getGroups,
   getSites, createSite, deleteSite, updateSite
 } from '@/app/actions';
-import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu, PieChart } from 'lucide-react';
+import { manualAddRanking } from '@/app/actions_manual';
+import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu, PieChart, Plus } from 'lucide-react';
 
 type ViewMode = 'list' | 'grid' | 'summary';
 
@@ -46,6 +48,10 @@ export default function Home() {
   
   // Pagination
   const [displayLimit, setDisplayLimit] = useState(20);
+
+  // Manual Input State
+  const [isInputModalOpen, setIsInputModalOpen] = useState(false);
+  const [manualInputInitialKeyword, setManualInputInitialKeyword] = useState('');
 
   // 1. Initial Load: Fetch Sites
   useEffect(() => {
@@ -305,6 +311,33 @@ export default function Home() {
     }
   };
 
+  const handleManualAdd = async (inputData: {
+    keyword: string;
+    rankingDate: string;
+    position: number | null;
+    url: string;
+    isAIOverview: boolean;
+  }) => {
+    if (!currentSiteId) return;
+    
+    // Optimistic update or refresh logic
+    const result = await manualAddRanking(
+      currentSiteId,
+      inputData.keyword,
+      inputData.rankingDate,
+      inputData.position,
+      inputData.url,
+      inputData.isAIOverview
+    );
+
+    if (result.success) {
+      await fetchData(currentSiteId);
+      alert('登録しました');
+    } else {
+      alert(`登録失敗: ${result.error}`);
+    }
+  };
+
   // UI Handlers
   const handleToggleSelect = (keyword: string) => {
     setSelectedKeywords((prev) => {
@@ -445,6 +478,17 @@ export default function Home() {
               </div>
           
           <div className="flex items-center gap-4">
+             <button
+               onClick={() => {
+                 setManualInputInitialKeyword('');
+                 setIsInputModalOpen(true);
+               }}
+               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors"
+             >
+               <Plus size={18} />
+               <span className="hidden sm:inline">順位登録</span>
+             </button>
+
              <PdfExportButton 
                data={filteredData} 
                allMonths={sortedMonthsForChart}
@@ -527,6 +571,14 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {/* Input Modal */}
+        <KeywordInputModal 
+          isOpen={isInputModalOpen}
+          onClose={() => setIsInputModalOpen(false)}
+          onSubmit={handleManualAdd}
+          initialKeyword={manualInputInitialKeyword}
+        />
 
         {/* Upload Area */}
         <FileUpload onFileUpload={handleFileUpload} />

@@ -154,7 +154,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
                              placeholder="サイト名"
                              value={editSiteName}
                              onChange={(e) => setEditSiteName(e.target.value)}
-                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded mb-1 focus:ring-2 focus:ring-blue-500"
+                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded mb-1 focus:ring-2 focus:ring-blue-500 text-gray-900"
                              autoFocus
                            />
                            <input
@@ -248,7 +248,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
                          placeholder="サイト名"
                          value={newSiteName}
                          onChange={(e) => setNewSiteName(e.target.value)}
-                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
                          autoFocus
                        />
                        <div className="flex gap-2">
@@ -259,7 +259,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
                              placeholder="URL (任意)"
                              value={newSiteUrl}
                              onChange={(e) => setNewSiteUrl(e.target.value)}
-                             className="w-full pl-6 pr-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                             className="w-full pl-6 pr-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-600"
                            />
                          </div>
                          <button 
