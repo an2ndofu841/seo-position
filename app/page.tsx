@@ -10,6 +10,7 @@ import { MonthComparison } from '@/components/MonthComparison';
 import { GroupManager } from '@/components/GroupManager';
 import { KeywordInputModal } from '@/components/KeywordInputModal';
 import { PdfExportButton } from '@/components/PdfExportButton';
+import { GensparkExport } from '@/components/GensparkExport';
 import { KeywordHistory, SortField, SortOrder, KeywordGroup, Site } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
 import { 
@@ -538,6 +539,13 @@ export default function Home() {
                data={filteredData} 
                allMonths={sortedMonthsForChart}
              />
+             
+             <GensparkExport
+                data={filteredData}
+                allMonths={sortedMonthsForChart}
+                siteName={currentSiteId ? sites.find(s => s.id === currentSiteId)?.name || 'My Site' : 'My Site'}
+             />
+
              <button
                onClick={() => setShowAdmin(!showAdmin)}
                    className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${showAdmin ? 'bg-gray-100 text-blue-600' : 'text-gray-400'}`}
