@@ -598,7 +598,7 @@ export default function Home() {
               {authUser.role === 'admin' && (
                 <Link
                   href="/admin"
-                  className="px-2 py-1 text-[11px] bg-purple-100 text-purple-700 rounded-md font-semibold hover:bg-purple-200"
+                  className="px-2 py-1 text-[11px] bg-purple-100 text-purple-700 rounded-md font-semibold hover:bg-purple-200 whitespace-nowrap"
                 >
                   管理ページ
                 </Link>
@@ -614,10 +614,11 @@ export default function Home() {
 
              <button
                onClick={() => openManualEntryModal('')}
-               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors"
+               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap"
+               title="順位登録"
              >
                <Plus size={18} />
-               <span className="hidden sm:inline">順位登録</span>
+               <span className="hidden xl:inline">順位登録</span>
              </button>
 
              <PdfExportButton 
@@ -635,24 +636,15 @@ export default function Home() {
               <>
                 <button
                   onClick={() => setShowAdmin(!showAdmin)}
-                  className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold border transition-colors ${
+                  className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold border transition-colors whitespace-nowrap ${
                     showAdmin
                       ? 'bg-red-50 text-red-700 border-red-200'
                       : 'bg-white text-red-600 border-red-200 hover:bg-red-50'
                   }`}
-                  title="月別CSV削除などのデータ管理"
+                  title="データ削除（月別CSV削除など）"
                 >
                   <Trash2 size={16} />
-                  データ削除
-                </button>
-                <button
-                  onClick={() => setShowAdmin(!showAdmin)}
-                  className={`sm:hidden p-2 rounded-full hover:bg-gray-100 transition-colors ${
-                    showAdmin ? 'bg-gray-100 text-blue-600' : 'text-gray-400'
-                  }`}
-                  title="データ管理"
-                >
-                  <Settings size={20} />
+                  <span className="hidden xl:inline">データ削除</span>
                 </button>
               </>
             )}
@@ -660,30 +652,33 @@ export default function Home() {
              <div className="flex bg-gray-100 p-1 rounded-lg">
               <button
                 onClick={() => setViewMode('list')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                   viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
+                title="リスト"
               >
                 <List size={18} />
-                リスト
+                <span className="hidden xl:inline">リスト</span>
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                   viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
+                title="パネル"
               >
                 <LayoutGrid size={18} />
-                パネル
+                <span className="hidden xl:inline">パネル</span>
               </button>
               <button
                 onClick={() => setViewMode('summary')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                   viewMode === 'summary' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
+                title="サマリー"
               >
                 <PieChart size={18} />
-                サマリー
+                <span className="hidden xl:inline">サマリー</span>
               </button>
              </div>
           </div>
