@@ -1,20 +1,53 @@
 'use server';
 
-import { createNoCookieClient } from '@/utils/supabase/server';
 import { KeywordHistory, MonthlyData, ParsedCsvData, KeywordGroup, Site } from '@/types';
+import { getAuthContext } from '@/utils/auth';
+
+async function ensureAuthenticated() {
+  const ctx = await getAuthContext();
+  if (!ctx.userId) {
+    throw new Error('ログインが必要です。');
+  }
+  return ctx;
+}
+
+function assertSiteAccess(ctx: Awaited<ReturnType<typeof getAuthContext>>, siteId: string) {
+  if (!ctx.isAdmin && !ctx.siteIds.includes(siteId)) {
+    throw new Error('このサイトへのアクセス権限がありません。');
+  }
+}
+
+async function ensureKeywordAccess(
+  supabase: Awaited<ReturnType<typeof getAuthContext>>['supabase'],
+  ctx: Awaited<ReturnType<typeof getAuthContext>>,
+  keywordId: string
+) {
+  const { data: kw } = await supabase.from('keywords').select('site_id').eq('id', keywordId).single();
+  if (!kw?.site_id) {
+    throw new Error('対象キーワードが見つかりません。');
+  }
+  assertSiteAccess(ctx, kw.site_id);
+  return kw.site_id as string;
+}
 
 // --- Site Actions ---
 
 export async function getSites(): Promise<Site[]> {
   try {
-    const supabase = await createNoCookieClient();
-    const { data, error } = await supabase
-      .from('sites')
-      .select('*')
-      .order('created_at', { ascending: true });
+    const ctx = await ensureAuthenticated();
+    const supabase = ctx.supabase;
+
+    let query = supabase.from('sites').select('*').order('created_at', { ascending: true });
+
+    if (!ctx.isAdmin) {
+      if (ctx.siteIds.length === 0) return [];
+      query = query.in('id', ctx.siteIds);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
-    return data || [];
+    return data ?? [];
   } catch (error) {
     console.error('Get Sites Error:', error);
     return [];
@@ -23,7 +56,11 @@ export async function getSites(): Promise<Site[]> {
 
 export async function createSite(name: string, url?: string) {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    if (!ctx.isAdmin) {
+      return { success: false, error: '管理者のみがサイトを作成できます。' };
+    }
+    const supabase = ctx.supabase;
     
     // Automatically fetch favicon if URL is provided
     let favicon = '';
@@ -54,7 +91,11 @@ export async function createSite(name: string, url?: string) {
 
 export async function updateSite(siteId: string, updates: { name?: string; url?: string }) {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    if (!ctx.isAdmin) {
+      return { success: false, error: '管理者のみがサイトを編集できます。' };
+    }
+    const supabase = ctx.supabase;
     
     const updateData: any = { ...updates };
     
@@ -87,7 +128,11 @@ export async function updateSite(siteId: string, updates: { name?: string; url?:
 
 export async function deleteSite(siteId: string) {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    if (!ctx.isAdmin) {
+      return { success: false, error: '管理者のみがサイトを削除できます。' };
+    }
+    const supabase = ctx.supabase;
     const { error } = await supabase
       .from('sites')
       .delete()
@@ -105,7 +150,9 @@ export async function deleteSite(siteId: string) {
 
 export async function createGroup(name: string, siteId: string) {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    assertSiteAccess(ctx, siteId);
+    const supabase = ctx.supabase;
     const { data, error } = await supabase
       .from('groups')
       .insert({ name, site_id: siteId })
@@ -122,11 +169,15 @@ export async function createGroup(name: string, siteId: string) {
 
 export async function deleteGroup(groupId: string) {
   try {
-    const supabase = await createNoCookieClient();
-    const { error } = await supabase
-      .from('groups')
-      .delete()
-      .eq('id', groupId);
+    const ctx = await ensureAuthenticated();
+    const supabase = ctx.supabase;
+
+    const { data: group } = await supabase.from('groups').select('site_id').eq('id', groupId).single();
+    if (group?.site_id) {
+      assertSiteAccess(ctx, group.site_id);
+    }
+
+    const { error } = await supabase.from('groups').delete().eq('id', groupId);
 
     if (error) throw error;
     return { success: true };
@@ -138,7 +189,13 @@ export async function deleteGroup(groupId: string) {
 
 export async function addKeywordsToGroup(groupId: string, keywordIds: string[]) {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    const supabase = ctx.supabase;
+
+    const { data: group } = await supabase.from('groups').select('site_id').eq('id', groupId).single();
+    if (group?.site_id) {
+      assertSiteAccess(ctx, group.site_id);
+    }
     const rows = keywordIds.map(kid => ({
       group_id: groupId,
       keyword_id: kid
@@ -158,7 +215,14 @@ export async function addKeywordsToGroup(groupId: string, keywordIds: string[]) 
 
 export async function removeKeywordsFromGroup(groupId: string, keywordIds: string[]) {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    const supabase = ctx.supabase;
+
+    const { data: group } = await supabase.from('groups').select('site_id').eq('id', groupId).single();
+    if (group?.site_id) {
+      assertSiteAccess(ctx, group.site_id);
+    }
+
     const { error } = await supabase
       .from('group_members')
       .delete()
@@ -175,7 +239,9 @@ export async function removeKeywordsFromGroup(groupId: string, keywordIds: strin
 
 export async function getGroups(siteId: string): Promise<KeywordGroup[]> {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    assertSiteAccess(ctx, siteId);
+    const supabase = ctx.supabase;
     // Get groups for the specific site
     const { data, error } = await supabase
       .from('groups')
@@ -211,7 +277,9 @@ export async function getGroups(siteId: string): Promise<KeywordGroup[]> {
 
 export async function deleteRankingDataByMonth(monthStr: string, siteId: string) {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    assertSiteAccess(ctx, siteId);
+    const supabase = ctx.supabase;
     const targetDate = `${monthStr}-01`;
 
     if (!/^\d{4}-\d{2}$/.test(monthStr)) {
@@ -256,7 +324,9 @@ export async function deleteRankingDataByMonth(monthStr: string, siteId: string)
 
 export async function deleteAllData(siteId: string) {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    assertSiteAccess(ctx, siteId);
+    const supabase = ctx.supabase;
 
     // Delete keywords for this site (cascade will delete rankings and group members)
     const { error: kwdError, count: kwdCount } = await supabase
@@ -287,13 +357,12 @@ export async function deleteAllData(siteId: string) {
 
 export async function deleteKeyword(keywordId: string) {
   try {
-    const supabase = await createNoCookieClient();
-    
-    // Deleting keyword will cascade to rankings and group_members
-    const { error } = await supabase
-      .from('keywords')
-      .delete()
-      .eq('id', keywordId);
+    const ctx = await ensureAuthenticated();
+    const supabase = ctx.supabase;
+
+    await ensureKeywordAccess(supabase, ctx, keywordId);
+
+    const { error } = await supabase.from('keywords').delete().eq('id', keywordId);
 
     if (error) {
       console.error('Delete Keyword Error:', error);
@@ -309,7 +378,9 @@ export async function deleteKeyword(keywordId: string) {
 
 export async function saveRankingData(data: ParsedCsvData[], siteId: string) {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    assertSiteAccess(ctx, siteId);
+    const supabase = ctx.supabase;
     
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       throw new Error('Supabase environment variables are missing on server.');
@@ -374,7 +445,9 @@ export async function saveRankingData(data: ParsedCsvData[], siteId: string) {
 
 export async function getRankingData(siteId: string): Promise<KeywordHistory[]> {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await ensureAuthenticated();
+    assertSiteAccess(ctx, siteId);
+    const supabase = ctx.supabase;
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       console.error('Environment variables missing in getRankingData');

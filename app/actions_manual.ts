@@ -1,7 +1,6 @@
 'use server';
 
-import { createNoCookieClient } from '@/utils/supabase/server';
-import { ParsedCsvData } from '@/types';
+import { getAuthContext } from '@/utils/auth';
 
 // Manual Add Ranking Action
 export async function manualAddRanking(
@@ -13,7 +12,14 @@ export async function manualAddRanking(
   isAIOverview: boolean
 ) {
   try {
-    const supabase = await createNoCookieClient();
+    const ctx = await getAuthContext();
+    if (!ctx.userId) {
+      return { success: false, error: 'ログインが必要です。' };
+    }
+    if (!ctx.isAdmin && !ctx.siteIds.includes(siteId)) {
+      return { success: false, error: 'このサイトへのアクセス権限がありません。' };
+    }
+    const supabase = ctx.supabase;
     
     // 1. Ensure keyword exists for this site
     // Upsert keyword

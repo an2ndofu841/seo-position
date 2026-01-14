@@ -16,6 +16,7 @@ interface GroupManagerProps {
   onCreateSite: (name: string, url?: string) => Promise<void>;
   onUpdateSite: (siteId: string, updates: { name?: string; url?: string }) => Promise<void>;
   onDeleteSite: (siteId: string) => Promise<void>;
+  canManageSites: boolean;
 
   isOpen: boolean;
   onToggle: () => void;
@@ -33,6 +34,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
   onCreateSite,
   onUpdateSite,
   onDeleteSite,
+  canManageSites,
   isOpen,
   onToggle,
 }) => {
@@ -76,6 +78,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
 
   const handleCreateSite = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManageSites) return;
     if (!newSiteName.trim()) return;
     await onCreateSite(newSiteName, newSiteUrl);
     setNewSiteName('');
@@ -84,6 +87,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
   };
 
   const startEditingSite = (site: Site) => {
+    if (!canManageSites) return;
     setEditingSiteId(site.id);
     setEditSiteName(site.name);
     setEditSiteUrl(site.url || '');
@@ -91,6 +95,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
 
   const handleUpdateSite = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManageSites) return;
     if (!editingSiteId || !editSiteName.trim()) return;
     await onUpdateSite(editingSiteId, { name: editSiteName, url: editSiteUrl });
     setEditingSiteId(null);
@@ -208,30 +213,34 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
                            </div>
                            
                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 startEditingSite(site);
-                               }}
-                               className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50"
-                               title="編集"
-                             >
-                               <Edit2 size={12} />
-                             </button>
-                             {sites.length > 1 && (
-                               <button
-                                 onClick={(e) => {
-                                   e.stopPropagation();
-                                   if (confirm(`サイト「${site.name}」とそのデータを全て削除しますか？`)) {
-                                     onDeleteSite(site.id);
-                                   }
-                                 }}
-                                 className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
-                                 title="削除"
-                               >
-                                 <Trash2 size={12} />
-                               </button>
-                             )}
+                            {canManageSites && (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startEditingSite(site);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50"
+                                  title="編集"
+                                >
+                                  <Edit2 size={12} />
+                                </button>
+                                {sites.length > 1 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm(`サイト「${site.name}」とそのデータを全て削除しますか？`)) {
+                                        onDeleteSite(site.id);
+                                      }
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
+                                    title="削除"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                )}
+                              </>
+                            )}
                            </div>
                          </div>
                        )}
@@ -240,46 +249,48 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
                  </div>
                  
                  {/* Add New Site */}
-                 <div className="border-t border-gray-100 p-2 bg-gray-50">
-                   {isCreatingSite ? (
-                     <form onSubmit={handleCreateSite} className="flex flex-col gap-2">
-                       <input
-                         type="text"
-                         placeholder="サイト名"
-                         value={newSiteName}
-                         onChange={(e) => setNewSiteName(e.target.value)}
-                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
-                         autoFocus
-                       />
-                       <div className="flex gap-2">
-                         <div className="relative flex-1">
-                           <LinkIcon size={12} className="absolute left-2 top-2 text-gray-400" />
-                           <input
-                             type="url"
-                             placeholder="URL (任意)"
-                             value={newSiteUrl}
-                             onChange={(e) => setNewSiteUrl(e.target.value)}
-                             className="w-full pl-6 pr-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-600"
-                           />
-                         </div>
-                         <button 
-                           type="submit"
-                           className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 shrink-0"
-                         >
-                           <Plus size={16} />
-                         </button>
-                       </div>
-                     </form>
-                   ) : (
-                     <button
-                       onClick={() => setIsCreatingSite(true)}
-                       className="w-full flex items-center justify-center gap-2 px-2 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors border border-dashed border-blue-300 bg-white"
-                     >
-                       <Plus size={16} />
-                       新しいサイトを追加
-                     </button>
-                   )}
-                 </div>
+                {canManageSites && (
+                  <div className="border-t border-gray-100 p-2 bg-gray-50">
+                    {isCreatingSite ? (
+                      <form onSubmit={handleCreateSite} className="flex flex-col gap-2">
+                        <input
+                          type="text"
+                          placeholder="サイト名"
+                          value={newSiteName}
+                          onChange={(e) => setNewSiteName(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <LinkIcon size={12} className="absolute left-2 top-2 text-gray-400" />
+                            <input
+                              type="url"
+                              placeholder="URL (任意)"
+                              value={newSiteUrl}
+                              onChange={(e) => setNewSiteUrl(e.target.value)}
+                              className="w-full pl-6 pr-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-600"
+                            />
+                          </div>
+                          <button 
+                            type="submit"
+                            className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 shrink-0"
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => setIsCreatingSite(true)}
+                        className="w-full flex items-center justify-center gap-2 px-2 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors border border-dashed border-blue-300 bg-white"
+                      >
+                        <Plus size={16} />
+                        新しいサイトを追加
+                      </button>
+                    )}
+                  </div>
+                )}
                </div>
              )}
            </div>

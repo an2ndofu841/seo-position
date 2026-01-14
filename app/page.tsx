@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FileUpload } from '@/components/FileUpload';
 import { RankTable } from '@/components/RankTable';
 import { RankChart } from '@/components/RankChart';
@@ -12,7 +14,7 @@ import { GroupManager } from '@/components/GroupManager';
 import { KeywordInputModal } from '@/components/KeywordInputModal';
 import { PdfExportButton } from '@/components/PdfExportButton';
 import { GensparkExport } from '@/components/GensparkExport';
-import { KeywordHistory, SortField, SortOrder, KeywordGroup, Site } from '@/types';
+import { KeywordHistory, SortField, SortOrder, KeywordGroup, Site, UserProfile } from '@/types';
 import { parseCsvFile } from '@/utils/csvParser';
 import { 
   saveRankingData, getRankingData, deleteRankingDataByMonth, deleteAllData,
@@ -22,11 +24,15 @@ import {
 import { manualAddRanking } from '@/app/actions_manual';
 import { fetchLatestRankings } from '@/app/actions_serp';
 import { deleteKeyword } from '@/app/actions';
-import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu, PieChart, Plus, RefreshCw } from 'lucide-react';
+import { getCurrentUser, signOut } from '@/app/auth/actions';
+import { LayoutGrid, List, BarChart2, Settings, Trash2, ArrowUpDown, Menu, PieChart, Plus, RefreshCw, LogOut, ShieldCheck } from 'lucide-react';
 
 type ViewMode = 'list' | 'grid' | 'summary';
 
 export default function Home() {
+  const router = useRouter();
+  const [authUser, setAuthUser] = useState<UserProfile | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   // Site State
   const [sites, setSites] = useState<Site[]>([]);
   const [currentSiteId, setCurrentSiteId] = useState<string | null>(null);
@@ -58,36 +64,55 @@ export default function Home() {
   const [isInputModalOpen, setIsInputModalOpen] = useState(false);
   const [manualInputInitialKeyword, setManualInputInitialKeyword] = useState('');
 
-  // 1. Initial Load: Fetch Sites
   useEffect(() => {
+    const initAuth = async () => {
+      setIsAuthLoading(true);
+      const res = await getCurrentUser();
+      if (!res.user) {
+        router.replace('/login');
+        return;
+      }
+      setAuthUser(res.user);
+    };
+    initAuth().finally(() => setIsAuthLoading(false));
+  }, [router]);
+
+  // 1. Load Sites after auth
+  useEffect(() => {
+    if (!authUser) return;
     loadSites();
-  }, []);
+  }, [authUser]);
 
   const loadSites = async () => {
+    if (!authUser) return;
     setIsLoading(true);
     try {
       const sitesData = await getSites();
       setSites(sitesData);
       
-      // Select first site if none selected, or ensure selection is valid
       if (sitesData.length > 0) {
         if (!currentSiteId || !sitesData.find(s => s.id === currentSiteId)) {
           setCurrentSiteId(sitesData[0].id);
         }
       } else {
-         // Create default site if none exists (migration should handle this, but safe fallback)
-         // Actually, let's assume getSites returns at least one if migration ran
          setCurrentSiteId(null);
       }
     } catch (error) {
       console.error('Failed to load sites:', error);
     } finally {
-      // Loading state for data will be handled by the next useEffect
+      setIsLoading(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setAuthUser(null);
+    router.replace('/login');
   };
 
   // 2. Fetch Data when Site Changes
   useEffect(() => {
+    if (isAuthLoading || !authUser) return;
     if (currentSiteId) {
       fetchData(currentSiteId);
     } else {
@@ -95,7 +120,7 @@ export default function Home() {
       setGroups([]);
       setIsLoading(false);
     }
-  }, [currentSiteId]);
+  }, [currentSiteId, isAuthLoading, authUser]);
 
   const fetchData = async (siteId: string) => {
     setIsLoading(true);
@@ -128,6 +153,10 @@ export default function Home() {
   // --- Site Actions ---
 
   const handleCreateSite = async (name: string, url?: string) => {
+    if (authUser?.role !== 'admin') {
+      alert('サイトの作成は管理者のみ可能です。');
+      return;
+    }
     setIsProcessing(true);
     try {
       const result = await createSite(name, url);
@@ -145,6 +174,10 @@ export default function Home() {
   };
 
   const handleUpdateSite = async (siteId: string, updates: { name?: string; url?: string }) => {
+    if (authUser?.role !== 'admin') {
+      alert('サイトの編集は管理者のみ可能です。');
+      return;
+    }
     setIsProcessing(true);
     try {
       const result = await updateSite(siteId, updates);
@@ -160,6 +193,10 @@ export default function Home() {
   };
 
   const handleDeleteSite = async (siteId: string) => {
+    if (authUser?.role !== 'admin') {
+      alert('サイトの削除は管理者のみ可能です。');
+      return;
+    }
     setIsProcessing(true);
     try {
       const result = await deleteSite(siteId);
@@ -203,6 +240,10 @@ export default function Home() {
   
   const handleDeleteMonth = async (month: string) => {
     if (!currentSiteId) return;
+    if (authUser?.role !== 'admin') {
+      alert('データ削除は管理者のみ可能です。');
+      return;
+    }
     if (!confirm(`${month} のデータを完全に削除しますか？\nこの操作は取り消せません。`)) { return; }
     
     setIsProcessing(true);
@@ -221,6 +262,10 @@ export default function Home() {
 
   const handleDeleteAll = async () => {
     if (!currentSiteId) return;
+    if (authUser?.role !== 'admin') {
+      alert('データ削除は管理者のみ可能です。');
+      return;
+    }
     if (!confirm('【警告】現在のサイトのすべてのデータを削除しますか？\n登録されているキーワードと順位履歴がすべて消去されます。')) { return; }
     if (!confirm('本当に削除してよろしいですか？\nこの操作は絶対に取り消せません。')) { return; }
     
@@ -467,6 +512,18 @@ export default function Home() {
     return [];
   }, [data, selectedKeywords]);
 
+  if (isAuthLoading) {
+    return (
+      <main className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-gray-600 text-sm">認証情報を確認しています...</div>
+      </main>
+    );
+  }
+
+  if (!authUser) {
+    return null;
+  }
+
   return (
     <main className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <GroupManager 
@@ -482,6 +539,7 @@ export default function Home() {
         onCreateSite={handleCreateSite}
         onUpdateSite={handleUpdateSite}
         onDeleteSite={handleDeleteSite}
+        canManageSites={authUser?.role === 'admin'}
 
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -528,6 +586,31 @@ export default function Home() {
               </div>
           
           <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="text-xs text-gray-600">
+                <div className="font-semibold text-gray-800">{authUser.email}</div>
+                <div className="flex items-center gap-1 text-[11px] text-gray-500">
+                  <ShieldCheck size={12} />
+                  {authUser.role === 'admin' ? '管理者' : 'クライアント'}
+                </div>
+              </div>
+              {authUser.role === 'admin' && (
+                <Link
+                  href="/admin"
+                  className="px-2 py-1 text-[11px] bg-purple-100 text-purple-700 rounded-md font-semibold hover:bg-purple-200"
+                >
+                  管理ページ
+                </Link>
+              )}
+              <button
+                onClick={handleSignOut}
+                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md"
+                title="ログアウト"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+
              <button
                onClick={() => openManualEntryModal('')}
                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors"
@@ -547,13 +630,15 @@ export default function Home() {
                 siteName={currentSiteId ? sites.find(s => s.id === currentSiteId)?.name || 'My Site' : 'My Site'}
              />
 
-             <button
-               onClick={() => setShowAdmin(!showAdmin)}
-                   className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${showAdmin ? 'bg-gray-100 text-blue-600' : 'text-gray-400'}`}
-                   title="データ管理"
-                 >
-                   <Settings size={20} />
-                 </button>
+            {authUser.role === 'admin' && (
+              <button
+                onClick={() => setShowAdmin(!showAdmin)}
+                    className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${showAdmin ? 'bg-gray-100 text-blue-600' : 'text-gray-400'}`}
+                    title="データ管理"
+                  >
+                    <Settings size={20} />
+                  </button>
+            )}
           
              <div className="flex bg-gray-100 p-1 rounded-lg">
               <button
@@ -588,7 +673,7 @@ export default function Home() {
         </div>
         
         {/* Admin Panel ... */}
-        {showAdmin && (
+        {authUser.role === 'admin' && showAdmin && (
           <div className="bg-red-50 border border-red-200 p-6 rounded-lg animate-in fade-in slide-in-from-top-2 space-y-6">
             <div>
               <h3 className="text-sm font-bold text-red-800 mb-3 flex items-center gap-2">

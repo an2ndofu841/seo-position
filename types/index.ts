@@ -49,3 +49,10 @@ export interface Site {
 
 export type SortField = 'keyword' | 'volume' | 'position' | 'diff';
 export type SortOrder = 'asc' | 'desc';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: 'admin' | 'client';
+  siteIds: string[];
+}

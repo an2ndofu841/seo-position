@@ -1,6 +1,6 @@
 'use server';
 
-import { createNoCookieClient } from '@/utils/supabase/server';
+import { getAuthContext } from '@/utils/auth';
 import { manualAddRanking } from './actions_manual';
 
 const SERP_API_KEY = process.env.SERP_API_KEY || 'b4b74badd880afe6d78843cb2ce68884374c24756fe5648c445af0a0a20e4685';
@@ -10,6 +10,15 @@ export async function fetchLatestRankings(siteId: string, keyword: string, targe
     if (!SERP_API_KEY) {
       throw new Error('SerpApi API Key is not configured.');
     }
+
+    const ctx = await getAuthContext();
+    if (!ctx.userId) {
+      return { success: false, error: 'ログインが必要です。' };
+    }
+    if (!ctx.isAdmin && !ctx.siteIds.includes(siteId)) {
+      return { success: false, error: 'このサイトへのアクセス権限がありません。' };
+    }
+    const supabase = ctx.supabase;
 
     console.log(`Fetching ranking for: ${keyword}`);
 
@@ -46,7 +55,6 @@ export async function fetchLatestRankings(siteId: string, keyword: string, targe
     // We need the domain to match.
     
     // First, let's get the site domain to check against results
-    const supabase = await createNoCookieClient();
     let searchDomain = '';
     
     if (targetUrl) {
