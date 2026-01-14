@@ -567,22 +567,44 @@ export default function Home() {
                 </button>
                 <div>
                   <h1 className="text-xl md:text-2xl font-bold text-gray-800">SEO Rank Visualizer</h1>
-                  <p className="text-gray-500 text-xs md:text-sm mt-1 flex items-center gap-2">
-                    キーワード順位の推移を可視化・分析
-                    {currentSiteId && sites.find(s => s.id === currentSiteId) && (
-                      <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
-                        {(() => {
-                          const s = sites.find(s => s.id === currentSiteId);
-                          return (
-                            <>
-                              {s?.favicon && <img src={s.favicon} alt="" className="w-3 h-3 rounded-sm" />}
-                              {s?.name}
-                            </>
-                          );
-                        })()}
-                      </span>
-                    )}
-                  </p>
+                  {(() => {
+                    const s = currentSiteId ? sites.find((x) => x.id === currentSiteId) : null;
+                    const hostname = (() => {
+                      const u = s?.url;
+                      if (!u) return '';
+                      try {
+                        const normalized = /^https?:\/\//i.test(u) ? u : `https://${u}`;
+                        return new URL(normalized).hostname;
+                      } catch {
+                        return u;
+                      }
+                    })();
+                    return (
+                      <div className="mt-2">
+                        {s ? (
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-lg">
+                            {s.favicon ? (
+                              <img src={s.favicon} alt="" className="w-4 h-4 rounded-sm" />
+                            ) : (
+                              <div className="w-4 h-4 rounded-sm bg-blue-200" />
+                            )}
+                            <div className="flex flex-col leading-tight">
+                              <div className="text-sm font-semibold truncate max-w-[60vw] md:max-w-[520px]">
+                                {s.name}
+                              </div>
+                              {hostname && (
+                                <div className="text-[11px] text-blue-700 truncate max-w-[60vw] md:max-w-[520px]">
+                                  {hostname}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-500">サイトを選択してください</div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
           
