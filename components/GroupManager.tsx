@@ -102,6 +102,16 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
   };
 
   const currentSite = sites.find(s => s.id === currentSiteId);
+  
+  const safeHostname = (rawUrl?: string) => {
+    if (!rawUrl) return '';
+    try {
+      const normalized = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+      return new URL(normalized).hostname;
+    } catch {
+      return rawUrl;
+    }
+  };
 
   return (
     <>
@@ -206,7 +216,7 @@ export const GroupManager: React.FC<GroupManagerProps> = ({
                                     {site.name}
                                   </span>
                                   {site.url && (
-                                    <span className="text-[10px] text-gray-400 truncate">{new URL(site.url).hostname}</span>
+                                    <span className="text-[10px] text-gray-400 truncate">{safeHostname(site.url)}</span>
                                   )}
                                 </div>
                              </div>

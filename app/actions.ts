@@ -94,20 +94,24 @@ export async function createSite(name: string, url?: string) {
     
     // Automatically fetch favicon if URL is provided
     let favicon = '';
-    if (url) {
+    let normalizedUrl = url;
+    if (normalizedUrl && !/^https?:\/\//i.test(normalizedUrl)) {
+      normalizedUrl = `https://${normalizedUrl}`;
+    }
+    if (normalizedUrl) {
       try {
         // Simple favicon fetching: Google Favicon API
         // Format: https://www.google.com/s2/favicons?domain=example.com&sz=64
-        const domain = new URL(url).hostname;
+        const domain = new URL(normalizedUrl).hostname;
         favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
       } catch (e) {
-        console.error('Invalid URL for favicon:', url);
+        console.error('Invalid URL for favicon:', normalizedUrl);
       }
     }
 
     const { data, error } = await supabase
       .from('sites')
-      .insert({ name, url, favicon })
+      .insert({ name, url: normalizedUrl, favicon })
       .select()
       .single();
 
@@ -132,7 +136,9 @@ export async function updateSite(siteId: string, updates: { name?: string; url?:
     // Update favicon if URL changed
     if (updates.url) {
       try {
-        const domain = new URL(updates.url).hostname;
+        const normalizedUrl = /^https?:\/\//i.test(updates.url) ? updates.url : `https://${updates.url}`;
+        updateData.url = normalizedUrl;
+        const domain = new URL(normalizedUrl).hostname;
         updateData.favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
       } catch (e) {
         console.error('Invalid URL for favicon:', updates.url);
