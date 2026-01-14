@@ -34,10 +34,12 @@ alter table user_site_access enable row level security;
 
 -- Policies for Profiles
 -- Users can read their own profile
+drop policy if exists "Users can view own profile" on profiles;
 create policy "Users can view own profile" on profiles
   for select using (auth.uid() = id);
 
 -- Admins can read all profiles
+drop policy if exists "Admins can view all profiles" on profiles;
 create policy "Admins can view all profiles" on profiles
   for select using (
     exists (
@@ -48,6 +50,7 @@ create policy "Admins can view all profiles" on profiles
 
 -- Policies for Sites
 -- Admins can do everything
+drop policy if exists "Admins can manage all sites" on sites;
 create policy "Admins can manage all sites" on sites
   for all using (
     exists (
@@ -57,6 +60,7 @@ create policy "Admins can manage all sites" on sites
   );
 
 -- Clients can read sites they have access to
+drop policy if exists "Clients can view assigned sites" on sites;
 create policy "Clients can view assigned sites" on sites
   for select using (
     exists (
@@ -68,6 +72,7 @@ create policy "Clients can view assigned sites" on sites
 
 -- Policies for User Site Access
 -- Admins can manage access
+drop policy if exists "Admins can manage site access" on user_site_access;
 create policy "Admins can manage site access" on user_site_access
   for all using (
     exists (
@@ -76,6 +81,7 @@ create policy "Admins can manage site access" on user_site_access
     )
   );
 -- Users can view their own access
+drop policy if exists "Users can view own access" on user_site_access;
 create policy "Users can view own access" on user_site_access
   for select using (user_id = auth.uid());
 
@@ -97,6 +103,7 @@ create trigger on_auth_user_created
 
 -- Update Keywords Policy (Restrict by site access)
 drop policy if exists "Allow public read access on keywords" on keywords;
+drop policy if exists "View keywords based on site access" on keywords;
 create policy "View keywords based on site access" on keywords
   for select using (
     site_id is null -- Public keywords (optional)
