@@ -23,10 +23,24 @@ async function ensureKeywordAccess(
   ctx: Awaited<ReturnType<typeof getAuthContext>>,
   keywordId: string
 ) {
-  const { data: kw } = await supabase.from('keywords').select('site_id').eq('id', keywordId).single();
-  if (!kw?.site_id) {
-    throw new Error('対象キーワードが見つかりません。');
+  if (!keywordId) {
+    throw new Error('キーワードIDが不正です。');
   }
+
+  const { data: kw, error } = await supabase
+    .from('keywords')
+    .select('site_id')
+    .eq('id', keywordId)
+    .maybeSingle();
+
+  if (error) {
+    // ここでRLSに弾かれると「見つからない」ように見えるので、メッセージを明示
+    throw new Error(`キーワードの参照に失敗しました: ${error.message}`);
+  }
+  if (!kw?.site_id) {
+    throw new Error('対象キーワードが見つかりません（削除済み、または権限がありません）。');
+  }
+
   assertSiteAccess(ctx, kw.site_id);
   return kw.site_id as string;
 }
@@ -406,10 +420,12 @@ export async function deleteKeyword(keywordId: string) {
   try {
     const ctx = await ensureAuthenticated();
     const supabase = ctx.supabase;
+    // DELETE はRLSで弾かれやすいので、サービスロールがある場合はそれで実行する
+    const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient() : supabase;
 
-    await ensureKeywordAccess(supabase, ctx, keywordId);
+    await ensureKeywordAccess(db, ctx, keywordId);
 
-    const { error } = await supabase.from('keywords').delete().eq('id', keywordId);
+    const { error } = await db.from('keywords').delete().eq('id', keywordId);
 
     if (error) {
       console.error('Delete Keyword Error:', error);
