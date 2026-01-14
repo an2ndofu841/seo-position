@@ -2,13 +2,24 @@
 
 import { getAuthContext } from '@/utils/auth';
 import { manualAddRanking } from './actions_manual';
+import { createServiceClient } from '@/utils/supabase/admin';
 
-const SERP_API_KEY = process.env.SERP_API_KEY || 'b4b74badd880afe6d78843cb2ce68884374c24756fe5648c445af0a0a20e4685';
+// SerpApi のAPIキー。環境差分を吸収するため複数名を許容（ハードコードはしない）。
+const SERP_API_KEY =
+  process.env.SERPAPI_API_KEY ||
+  process.env.SERPAPI_KEY ||
+  process.env.SERP_API_KEY ||
+  '';
+
+const normalizeToUrl = (raw: string) => {
+  const trimmed = raw.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
 
 export async function fetchLatestRankings(siteId: string, keyword: string, targetUrl?: string) {
   try {
     if (!SERP_API_KEY) {
-      throw new Error('SerpApi API Key is not configured.');
+      throw new Error('SerpApi APIキーが未設定です。環境変数 SERPAPI_KEY（推奨）を設定してください。');
     }
 
     const ctx = await getAuthContext();
@@ -32,9 +43,12 @@ export async function fetchLatestRankings(siteId: string, keyword: string, targe
       hl: 'ja',   // Language: Japanese
     });
 
-    const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
+    const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`, {
+      cache: 'no-store',
+    });
     if (!response.ok) {
-      throw new Error(`SerpApi Request Failed: ${response.statusText}`);
+      const text = await response.text().catch(() => '');
+      throw new Error(`SerpApi Request Failed: ${response.status} ${response.statusText}${text ? ` / ${text}` : ''}`);
     }
 
     const data = await response.json();
@@ -59,29 +73,38 @@ export async function fetchLatestRankings(siteId: string, keyword: string, targe
     
     if (targetUrl) {
         try {
-            searchDomain = new URL(targetUrl).hostname;
+            searchDomain = new URL(normalizeToUrl(targetUrl)).hostname;
         } catch (e) {
             console.warn('Invalid target URL for matching:', targetUrl);
         }
     } else {
         // Fetch site url from DB if not passed
-        const { data: site } = await supabase.from('sites').select('url').eq('id', siteId).single();
+        // sites はRLSの影響を受けやすいので、サービスロールがある場合はそれで確実に取得する
+        const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient() : supabase;
+        const { data: site } = await db.from('sites').select('url').eq('id', siteId).maybeSingle();
         if (site?.url) {
-             try {
-                searchDomain = new URL(site.url).hostname;
-            } catch (e) { /* ignore */ }
+          try {
+            searchDomain = new URL(normalizeToUrl(site.url)).hostname;
+          } catch (e) {
+            // ignore
+          }
         }
     }
 
     if (!searchDomain) {
-        throw new Error('サイトのURLが設定されていないため、順位を判定できません。サイト設定からURLを登録してください。');
+        throw new Error(
+          `サイトのURLが取得できないため、順位を判定できません。サイト設定からURL（https://〜）を登録してください。（siteId: ${siteId}）`
+        );
     }
+
+    const normalizeDomain = (d: string) => d.replace(/^www\./i, '').toLowerCase();
+    const needle = normalizeDomain(searchDomain);
 
     // Search for domain in results
     const foundItem = organicResults.find((item: any) => {
         try {
-            const itemDomain = new URL(item.link).hostname;
-            return itemDomain.includes(searchDomain);
+            const itemDomain = normalizeDomain(new URL(item.link).hostname);
+            return itemDomain === needle || itemDomain.endsWith(`.${needle}`);
         } catch (e) {
             return false;
         }

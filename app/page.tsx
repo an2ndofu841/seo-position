@@ -393,7 +393,8 @@ export default function Home() {
 
     setIsProcessing(true);
     try {
-      const result = await fetchLatestRankings(currentSiteId, keyword);
+      const targetUrl = sites.find((s) => s.id === currentSiteId)?.url;
+      const result = await fetchLatestRankings(currentSiteId, keyword, targetUrl);
       if (result.success) {
         alert(`取得完了: ${result.position ? result.position + '位' : '圏外'}`);
         await fetchData(currentSiteId);
