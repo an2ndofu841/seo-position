@@ -85,6 +85,16 @@ export async function createClientUser(
       return { success: false, error: 'ユーザー作成に失敗しました。' };
     }
 
+    // 先にprofilesを確実に作成（user_site_access のFK(user_id -> profiles.id)に備える）
+    await admin.from('profiles').upsert(
+      {
+        id: userId,
+        email,
+        role: 'client',
+      },
+      { onConflict: 'id' }
+    );
+
     if (siteIds.length > 0) {
       const accessRows = siteIds.map((siteId) => ({
         user_id: userId,
@@ -95,16 +105,6 @@ export async function createClientUser(
         return { success: false, error: accessError.message };
       }
     }
-
-    // 念のためprofilesテーブルにもメール/roleを同期（トリガー未整備でも壊れないようupsert）
-    await admin.from('profiles').upsert(
-      {
-        id: userId,
-        email,
-        role: 'client',
-      },
-      { onConflict: 'id' }
-    );
 
     return { success: true };
   } catch (error: any) {

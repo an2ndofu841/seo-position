@@ -876,7 +876,9 @@ export default function Home() {
           !isProcessing && (
             <div className="text-center py-20 text-gray-400">
               {sites.length === 0 
-                ? 'サイトがありません。サイドバーからサイトを作成してください。'
+                ? (authUser.role === 'admin'
+                    ? 'サイトがありません。サイドバーからサイトを作成してください。'
+                    : '閲覧可能なサイトが割り当てられていません。管理者にサイト権限の付与を依頼してください。')
                 : 'データがありません。CSVファイルをアップロードしてください。'}
             </div>
           )
