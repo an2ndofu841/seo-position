@@ -878,7 +878,7 @@ export default function Home() {
               {sites.length === 0 
                 ? (authUser.role === 'admin'
                     ? 'サイトがありません。サイドバーからサイトを作成してください。'
-                    : '閲覧可能なサイトが割り当てられていません。管理者にサイト権限の付与を依頼してください。')
+                    : `閲覧可能なサイトが割り当てられていません。管理者にサイト権限の付与を依頼してください。（userId: ${authUser.id} / assigned: ${authUser.siteIds.length}）`)
                 : 'データがありません。CSVファイルをアップロードしてください。'}
             </div>
           )

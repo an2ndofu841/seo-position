@@ -38,24 +38,43 @@ export async function getSites(): Promise<Site[]> {
     const ctx = await ensureAuthenticated();
     const supabase = ctx.supabase;
 
-    // 管理者の「サイト一覧」はクライアント権限設定にも使うため、
-    // RLS/ポリシーの状態に左右されず取得できるようサービスロールを優先する。
-    if (ctx.isAdmin && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // ここが「サイト選択UI」の根幹なので、RLSに依存しない（=サービスロールで確実に解決する）ルートを優先。
+    // サービスロールが無い環境では従来通りRLSで取得する。
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const admin = createServiceClient();
 
-      const { data: ordered, error: orderedError } = await admin
+      if (ctx.isAdmin) {
+        const { data: ordered, error: orderedError } = await admin
+          .from('sites')
+          .select('*')
+          .order('created_at', { ascending: true });
+        if (!orderedError) return ordered ?? [];
+
+        const { data: fallback, error: fallbackError } = await admin.from('sites').select('*');
+        if (fallbackError) throw fallbackError;
+        return fallback ?? [];
+      }
+
+      // client: user_site_access -> sites をサーバ側で結合的に取得（権限の真実はDBにある）
+      const { data: accessRows, error: accessError } = await admin
+        .from('user_site_access')
+        .select('site_id')
+        .eq('user_id', ctx.userId);
+      if (accessError) throw accessError;
+
+      const siteIds = (accessRows || []).map((r) => r.site_id).filter(Boolean) as string[];
+      if (siteIds.length === 0) return [];
+
+      const { data: sites, error: sitesError } = await admin
         .from('sites')
         .select('*')
+        .in('id', siteIds)
         .order('created_at', { ascending: true });
-
-      if (!orderedError) return ordered ?? [];
-
-      // 既存DBの都合で created_at が無い等の場合に備えて、並び替え無しでフォールバック
-      const { data: fallback, error: fallbackError } = await admin.from('sites').select('*');
-      if (fallbackError) throw fallbackError;
-      return fallback ?? [];
+      if (sitesError) throw sitesError;
+      return sites ?? [];
     }
 
+    // --- fallback: RLSベース ---
     let query = supabase.from('sites').select('*').order('created_at', { ascending: true });
 
     if (!ctx.isAdmin) {
@@ -64,19 +83,7 @@ export async function getSites(): Promise<Site[]> {
     }
 
     const { data, error } = await query;
-
     if (error) throw error;
-
-    // RLS/ポリシー差分で「siteIdsはあるのに0件」になるケースを救済
-    if (!ctx.isAdmin && (data?.length ?? 0) === 0 && ctx.siteIds.length > 0 && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      const admin = createServiceClient();
-      const { data: recovered, error: recoveredError } = await admin
-        .from('sites')
-        .select('*')
-        .in('id', ctx.siteIds);
-      if (!recoveredError) return recovered ?? [];
-    }
-
     return data ?? [];
   } catch (error) {
     console.error('Get Sites Error:', error);
