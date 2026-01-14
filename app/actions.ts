@@ -2,6 +2,7 @@
 
 import { KeywordHistory, MonthlyData, ParsedCsvData, KeywordGroup, Site } from '@/types';
 import { getAuthContext } from '@/utils/auth';
+import { createServiceClient } from '@/utils/supabase/admin';
 
 async function ensureAuthenticated() {
   const ctx = await getAuthContext();
@@ -36,6 +37,24 @@ export async function getSites(): Promise<Site[]> {
   try {
     const ctx = await ensureAuthenticated();
     const supabase = ctx.supabase;
+
+    // 管理者の「サイト一覧」はクライアント権限設定にも使うため、
+    // RLS/ポリシーの状態に左右されず取得できるようサービスロールを優先する。
+    if (ctx.isAdmin && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const admin = createServiceClient();
+
+      const { data: ordered, error: orderedError } = await admin
+        .from('sites')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (!orderedError) return ordered ?? [];
+
+      // 既存DBの都合で created_at が無い等の場合に備えて、並び替え無しでフォールバック
+      const { data: fallback, error: fallbackError } = await admin.from('sites').select('*');
+      if (fallbackError) throw fallbackError;
+      return fallback ?? [];
+    }
 
     let query = supabase.from('sites').select('*').order('created_at', { ascending: true });
 
