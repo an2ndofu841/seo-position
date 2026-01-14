@@ -285,8 +285,9 @@ export async function getGroups(siteId: string): Promise<KeywordGroup[]> {
     const ctx = await ensureAuthenticated();
     assertSiteAccess(ctx, siteId);
     const supabase = ctx.supabase;
+    const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient() : supabase;
     // Get groups for the specific site
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('groups')
       .select(`
         id,
@@ -491,6 +492,7 @@ export async function getRankingData(siteId: string): Promise<KeywordHistory[]> 
     const ctx = await ensureAuthenticated();
     assertSiteAccess(ctx, siteId);
     const supabase = ctx.supabase;
+    const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient() : supabase;
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       console.error('Environment variables missing in getRankingData');
@@ -498,7 +500,7 @@ export async function getRankingData(siteId: string): Promise<KeywordHistory[]> 
     }
 
     // Fetch keywords only for the specific site
-    const { data: keywords, error } = await supabase
+    const { data: keywords, error } = await db
       .from('keywords')
       .select(`
         id,
