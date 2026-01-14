@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createServiceClient } from '@/utils/supabase/admin';
 
 type UserRole = 'admin' | 'client';
 
@@ -36,11 +37,28 @@ export async function getAuthContext(): Promise<AuthContext> {
     };
   }
 
-  const { data: profile } = await supabase
+  // profiles.role がこのアプリの「権限の真実のソース」。
+  // ただしRLS設定や既存データ都合で取得できない/存在しないことがあるので、
+  // まずは通常クライアントで取得し、必要ならサービスロールで補助的に確認する。
+  let { data: profile } = await supabase
     .from('profiles')
     .select('role, email')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
+
+  if (!profile && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const admin = createServiceClient();
+      const { data: adminProfile } = await admin
+        .from('profiles')
+        .select('role, email')
+        .eq('id', user.id)
+        .maybeSingle();
+      profile = adminProfile ?? profile;
+    } catch {
+      // サービスロール未設定/取得失敗時は無視（client扱いにフォールバック）
+    }
+  }
 
   const role = (profile?.role as UserRole) ?? 'client';
 

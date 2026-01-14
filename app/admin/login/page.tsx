@@ -38,7 +38,9 @@ export default function AdminLoginPage() {
         return;
       }
       if (res.user.role !== 'admin') {
-        setError('管理者権限がありません。');
+        setError(
+          `管理者権限がありません（現在: ${res.user.role}）。このアプリは Supabase の public.profiles.role を参照します。対象ユーザー(${res.user.email})の profiles.role が admin になっているか確認してください。`
+        );
         return;
       }
       router.replace('/admin');
