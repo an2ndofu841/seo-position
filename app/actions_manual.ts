@@ -1,6 +1,7 @@
 'use server';
 
 import { getAuthContext } from '@/utils/auth';
+import { createServiceClient } from '@/utils/supabase/admin';
 
 // Manual Add Ranking Action
 export async function manualAddRanking(
@@ -20,10 +21,11 @@ export async function manualAddRanking(
       return { success: false, error: 'このサイトへのアクセス権限がありません。' };
     }
     const supabase = ctx.supabase;
+    const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient() : supabase;
     
     // 1. Ensure keyword exists for this site
     // Upsert keyword
-    const { data: keywordData, error: keywordError } = await supabase
+    const { data: keywordData, error: keywordError } = await db
       .from('keywords')
       .upsert({
         site_id: siteId,
@@ -41,7 +43,7 @@ export async function manualAddRanking(
     const dateParts = rankingDate.split('-');
     const dbDate = `${dateParts[0]}-${dateParts[1]}-01`;
 
-    const { error: rankingError } = await supabase
+    const { error: rankingError } = await db
       .from('rankings')
       .upsert({
         keyword_id: keywordId,

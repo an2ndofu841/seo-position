@@ -425,6 +425,8 @@ export async function saveRankingData(data: ParsedCsvData[], siteId: string) {
     const ctx = await ensureAuthenticated();
     assertSiteAccess(ctx, siteId);
     const supabase = ctx.supabase;
+    // INSERT/UPDATE はRLSで弾かれやすいので、サービスロールがある場合はDB書き込みをそちらで行う
+    const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient() : supabase;
     
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       throw new Error('Supabase environment variables are missing on server.');
@@ -440,7 +442,7 @@ export async function saveRankingData(data: ParsedCsvData[], siteId: string) {
     }));
 
     // Upsert keywords with (site_id, keyword) constraint
-    const { data: keywordResults, error: keywordError } = await supabase
+    const { data: keywordResults, error: keywordError } = await db
       .from('keywords')
       .upsert(keywordUpsertData, { onConflict: 'site_id, keyword' })
       .select('id, keyword');
@@ -470,7 +472,7 @@ export async function saveRankingData(data: ParsedCsvData[], siteId: string) {
     }).filter(item => item !== null);
 
     if (rankingUpsertData.length > 0) {
-      const { error: rankingError } = await supabase
+      const { error: rankingError } = await db
         .from('rankings')
         .upsert(rankingUpsertData as any, { onConflict: 'keyword_id, ranking_date' });
       
