@@ -9,12 +9,14 @@ interface PdfExportButtonProps {
   data: KeywordHistory[];
   allMonths: string[];
   buttonClassName?: string;
+  iconOnly?: boolean;
 }
 
 export const PdfExportButton: React.FC<PdfExportButtonProps> = ({ 
   data, 
   allMonths,
-  buttonClassName 
+  buttonClassName,
+  iconOnly
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
@@ -92,6 +94,12 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
       <button
         onClick={handleExport}
         disabled={isGenerating || data.length === 0}
+        title={
+          isGenerating
+            ? (progress ? `PDF出力中 (${progress.current}/${progress.total})` : 'PDF出力準備中...')
+            : 'PDF出力'
+        }
+        aria-label="PDF出力"
         className={buttonClassName || "flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors disabled:opacity-50"}
       >
         {isGenerating ? (
@@ -99,9 +107,11 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
         ) : (
           <FileDown size={18} />
         )}
-        {isGenerating ? (
-          progress ? `出力中 (${progress.current}/${progress.total})` : '準備中...'
-        ) : 'PDF出力'}
+        {!iconOnly && (
+          isGenerating ? (
+            progress ? `出力中 (${progress.current}/${progress.total})` : '準備中...'
+          ) : 'PDF出力'
+        )}
       </button>
 
       {/* PDF生成用隠しレンダリングエリア */}

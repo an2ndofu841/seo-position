@@ -614,29 +614,31 @@ export default function Home() {
 
              <button
                onClick={() => openManualEntryModal('')}
-               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap"
+               className="inline-flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm transition-colors"
                title="順位登録"
              >
                <Plus size={18} />
-               <span className="hidden xl:inline">順位登録</span>
              </button>
 
              <PdfExportButton 
                data={filteredData} 
                allMonths={sortedMonthsForChart}
+               iconOnly
+               buttonClassName="inline-flex items-center justify-center w-10 h-10 bg-white border border-gray-300 rounded-md hover:bg-gray-50 shadow-sm transition-colors disabled:opacity-50"
              />
              
              <GensparkExport
                 data={filteredData}
                 allMonths={sortedMonthsForChart}
                 siteName={currentSiteId ? sites.find(s => s.id === currentSiteId)?.name || 'My Site' : 'My Site'}
+                iconOnly
              />
 
             {authUser.role === 'admin' && (
               <>
                 <button
                   onClick={() => setShowAdmin(!showAdmin)}
-                  className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold border transition-colors whitespace-nowrap ${
+                  className={`inline-flex items-center justify-center w-10 h-10 rounded-md border transition-colors ${
                     showAdmin
                       ? 'bg-red-50 text-red-700 border-red-200'
                       : 'bg-white text-red-600 border-red-200 hover:bg-red-50'
@@ -644,7 +646,6 @@ export default function Home() {
                   title="データ削除（月別CSV削除など）"
                 >
                   <Trash2 size={16} />
-                  <span className="hidden xl:inline">データ削除</span>
                 </button>
               </>
             )}
@@ -655,30 +656,27 @@ export default function Home() {
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                   viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
-                title="リスト"
               >
                 <List size={18} />
-                <span className="hidden xl:inline">リスト</span>
+                リスト
               </button>
               <button
                 onClick={() => setViewMode('grid')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                   viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
-                title="パネル"
               >
                 <LayoutGrid size={18} />
-                <span className="hidden xl:inline">パネル</span>
+                パネル
               </button>
               <button
                 onClick={() => setViewMode('summary')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                   viewMode === 'summary' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
-                title="サマリー"
               >
                 <PieChart size={18} />
-                <span className="hidden xl:inline">サマリー</span>
+                サマリー
               </button>
              </div>
           </div>

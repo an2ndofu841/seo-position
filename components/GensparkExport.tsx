@@ -6,9 +6,10 @@ interface GensparkExportProps {
   data: KeywordHistory[];
   allMonths: string[];
   siteName: string;
+  iconOnly?: boolean;
 }
 
-export const GensparkExport: React.FC<GensparkExportProps> = ({ data, allMonths, siteName }) => {
+export const GensparkExport: React.FC<GensparkExportProps> = ({ data, allMonths, siteName, iconOnly }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -147,10 +148,16 @@ ${[...currentStats.rank2, ...currentStats.rank3].slice(0, 20).map(d => `- ${d.ke
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 shadow-sm transition-colors"
+        className={
+          iconOnly
+            ? "inline-flex items-center justify-center w-10 h-10 bg-purple-600 text-white rounded-md hover:bg-purple-700 shadow-sm transition-colors"
+            : "flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 shadow-sm transition-colors"
+        }
+        title="AI分析プロンプト"
+        aria-label="AI分析プロンプト"
       >
         <Sparkles size={18} />
-        <span className="hidden sm:inline">AI分析プロンプト</span>
+        {!iconOnly && <span className="hidden sm:inline">AI分析プロンプト</span>}
       </button>
 
       {isOpen && (
