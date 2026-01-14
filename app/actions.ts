@@ -98,6 +98,7 @@ export async function createSite(name: string, url?: string) {
       return { success: false, error: '管理者のみがサイトを作成できます。' };
     }
     const supabase = ctx.supabase;
+    const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient() : supabase;
     
     // Automatically fetch favicon if URL is provided
     let favicon = '';
@@ -116,7 +117,7 @@ export async function createSite(name: string, url?: string) {
       }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('sites')
       .insert({ name, url: normalizedUrl, favicon })
       .select()
@@ -137,6 +138,7 @@ export async function updateSite(siteId: string, updates: { name?: string; url?:
       return { success: false, error: '管理者のみがサイトを編集できます。' };
     }
     const supabase = ctx.supabase;
+    const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient() : supabase;
     
     const updateData: any = { ...updates };
     
@@ -154,7 +156,7 @@ export async function updateSite(siteId: string, updates: { name?: string; url?:
       }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('sites')
       .update(updateData)
       .eq('id', siteId)
@@ -176,7 +178,8 @@ export async function deleteSite(siteId: string) {
       return { success: false, error: '管理者のみがサイトを削除できます。' };
     }
     const supabase = ctx.supabase;
-    const { error } = await supabase
+    const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient() : supabase;
+    const { error } = await db
       .from('sites')
       .delete()
       .eq('id', siteId);
