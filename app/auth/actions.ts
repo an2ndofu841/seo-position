@@ -96,11 +96,15 @@ export async function createClientUser(
       }
     }
 
-    // 念のためprofilesテーブルにもメールを同期
-    await admin
-      .from('profiles')
-      .update({ email, role: 'client' })
-      .eq('id', userId);
+    // 念のためprofilesテーブルにもメール/roleを同期（トリガー未整備でも壊れないようupsert）
+    await admin.from('profiles').upsert(
+      {
+        id: userId,
+        email,
+        role: 'client',
+      },
+      { onConflict: 'id' }
+    );
 
     return { success: true };
   } catch (error: any) {

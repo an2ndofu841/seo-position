@@ -62,12 +62,27 @@ export async function getAuthContext(): Promise<AuthContext> {
 
   const role = (profile?.role as UserRole) ?? 'client';
 
-  const { data: siteAccess } = await supabase
+  const { data: siteAccess, error: siteAccessError } = await supabase
     .from('user_site_access')
     .select('site_id')
     .eq('user_id', user.id);
 
-  const siteIds = (siteAccess || []).map((s) => s.site_id);
+  let siteIds = (siteAccess || []).map((s) => s.site_id).filter(Boolean) as string[];
+
+  // user_site_access のRLS/ポリシー差分などで「本来あるのに取れない」ケースを救済
+  if ((siteAccessError || siteIds.length === 0) && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const admin = createServiceClient();
+      const { data: adminAccess } = await admin
+        .from('user_site_access')
+        .select('site_id')
+        .eq('user_id', user.id);
+      const recovered = (adminAccess || []).map((s) => s.site_id).filter(Boolean) as string[];
+      if (recovered.length > 0) siteIds = recovered;
+    } catch {
+      // 取得失敗時は無視
+    }
+  }
 
   return {
     supabase,

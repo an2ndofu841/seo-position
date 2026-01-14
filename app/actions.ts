@@ -66,6 +66,17 @@ export async function getSites(): Promise<Site[]> {
     const { data, error } = await query;
 
     if (error) throw error;
+
+    // RLS/ポリシー差分で「siteIdsはあるのに0件」になるケースを救済
+    if (!ctx.isAdmin && (data?.length ?? 0) === 0 && ctx.siteIds.length > 0 && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const admin = createServiceClient();
+      const { data: recovered, error: recoveredError } = await admin
+        .from('sites')
+        .select('*')
+        .in('id', ctx.siteIds);
+      if (!recoveredError) return recovered ?? [];
+    }
+
     return data ?? [];
   } catch (error) {
     console.error('Get Sites Error:', error);
