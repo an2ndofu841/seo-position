@@ -632,13 +632,29 @@ export default function Home() {
              />
 
             {authUser.role === 'admin' && (
-              <button
-                onClick={() => setShowAdmin(!showAdmin)}
-                    className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${showAdmin ? 'bg-gray-100 text-blue-600' : 'text-gray-400'}`}
-                    title="データ管理"
-                  >
-                    <Settings size={20} />
-                  </button>
+              <>
+                <button
+                  onClick={() => setShowAdmin(!showAdmin)}
+                  className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold border transition-colors ${
+                    showAdmin
+                      ? 'bg-red-50 text-red-700 border-red-200'
+                      : 'bg-white text-red-600 border-red-200 hover:bg-red-50'
+                  }`}
+                  title="月別CSV削除などのデータ管理"
+                >
+                  <Trash2 size={16} />
+                  データ削除
+                </button>
+                <button
+                  onClick={() => setShowAdmin(!showAdmin)}
+                  className={`sm:hidden p-2 rounded-full hover:bg-gray-100 transition-colors ${
+                    showAdmin ? 'bg-gray-100 text-blue-600' : 'text-gray-400'
+                  }`}
+                  title="データ管理"
+                >
+                  <Settings size={20} />
+                </button>
+              </>
             )}
           
              <div className="flex bg-gray-100 p-1 rounded-lg">
