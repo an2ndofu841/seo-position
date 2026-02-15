@@ -367,22 +367,39 @@ export default function Home() {
     position: number | null;
     url: string;
     isAIOverview: boolean;
+    useSerpApi: boolean;
   }) => {
     if (!currentSiteId) return;
-    
-    const result = await manualAddRanking(
-      currentSiteId,
-      inputData.keyword,
-      inputData.rankingDate,
-      inputData.position,
-      inputData.url,
-      inputData.isAIOverview
-    );
+    setIsProcessing(true);
+    try {
+      if (inputData.useSerpApi) {
+        const targetUrl = sites.find((s) => s.id === currentSiteId)?.url;
+        const result = await fetchLatestRankings(currentSiteId, inputData.keyword, targetUrl);
+        if (result.success) {
+          alert(`取得完了: ${result.position ? result.position + '位' : '圏外'}`);
+          await fetchData(currentSiteId);
+        } else {
+          alert(`取得失敗: ${result.error}`);
+        }
+        return;
+      }
 
-    if (result.success) {
-      await fetchData(currentSiteId);
-    } else {
-      alert(`登録失敗: ${result.error}`);
+      const result = await manualAddRanking(
+        currentSiteId,
+        inputData.keyword,
+        inputData.rankingDate,
+        inputData.position,
+        inputData.url,
+        inputData.isAIOverview
+      );
+
+      if (result.success) {
+        await fetchData(currentSiteId);
+      } else {
+        alert(`登録失敗: ${result.error}`);
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 

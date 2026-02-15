@@ -10,6 +10,7 @@ interface KeywordInputModalProps {
     position: number | null;
     url: string;
     isAIOverview: boolean;
+    useSerpApi: boolean;
   }) => Promise<void>;
   initialKeyword?: string;
 }
@@ -28,6 +29,7 @@ export const KeywordInputModal: React.FC<KeywordInputModalProps> = ({
   const [position, setPosition] = useState<string>('');
   const [url, setUrl] = useState('');
   const [isAIOverview, setIsAIOverview] = useState(false);
+  const [useSerpApi, setUseSerpApi] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Update keyword state when initialKeyword changes (e.g. reopening modal for specific keyword)
@@ -50,6 +52,7 @@ export const KeywordInputModal: React.FC<KeywordInputModalProps> = ({
         position: position ? parseInt(position, 10) : null,
         url: url.trim(),
         isAIOverview,
+        useSerpApi,
       });
       // Close on success
       onClose();
@@ -58,6 +61,7 @@ export const KeywordInputModal: React.FC<KeywordInputModalProps> = ({
       setPosition('');
       setUrl('');
       setIsAIOverview(false);
+      setUseSerpApi(false);
     } catch (error) {
       alert('登録に失敗しました');
     } finally {
@@ -79,6 +83,33 @@ export const KeywordInputModal: React.FC<KeywordInputModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* SerpAPI option */}
+          <div className="flex items-start gap-3 rounded-md border border-blue-100 bg-blue-50/60 p-3">
+            <input
+              type="checkbox"
+              id="useSerpApi"
+              checked={useSerpApi}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setUseSerpApi(next);
+                if (next) {
+                  const now = new Date();
+                  setRankingDate(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+                  setPosition('');
+                  setUrl('');
+                  setIsAIOverview(false);
+                }
+              }}
+              className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="useSerpApi" className="text-sm text-gray-800 cursor-pointer">
+              <span className="font-semibold">APIで順位を計測して登録</span>
+              <div className="text-xs text-gray-500 mt-1">
+                SerpAPIで当月の順位を取得して保存します（手入力の順位/URLは使用しません）。
+              </div>
+            </label>
+          </div>
+
           {/* Keyword */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -109,7 +140,8 @@ export const KeywordInputModal: React.FC<KeywordInputModalProps> = ({
                   type="month"
                   value={rankingDate}
                   onChange={(e) => setRankingDate(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  disabled={useSerpApi}
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:bg-gray-100 disabled:text-gray-400"
                   required
                 />
               </div>
@@ -126,7 +158,8 @@ export const KeywordInputModal: React.FC<KeywordInputModalProps> = ({
                 max="100"
                 value={position}
                 onChange={(e) => setPosition(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 text-gray-900"
+                disabled={useSerpApi}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:bg-gray-100 disabled:text-gray-400"
                 placeholder="圏外は空欄"
               />
             </div>
@@ -143,7 +176,8 @@ export const KeywordInputModal: React.FC<KeywordInputModalProps> = ({
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 text-gray-900"
+                disabled={useSerpApi}
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:bg-gray-100 disabled:text-gray-400"
                 placeholder="https://example.com/page"
               />
             </div>
@@ -156,7 +190,8 @@ export const KeywordInputModal: React.FC<KeywordInputModalProps> = ({
               id="isAIOverview"
               checked={isAIOverview}
               onChange={(e) => setIsAIOverview(e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              disabled={useSerpApi}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
             />
             <label htmlFor="isAIOverview" className="text-sm text-gray-700 flex items-center gap-1 cursor-pointer">
               <Bot size={16} className="text-purple-600" />
