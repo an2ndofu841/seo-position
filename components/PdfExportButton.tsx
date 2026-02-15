@@ -26,6 +26,7 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
   // ヘッダーやマージンを除いたエリアにカードを配置
   // 4列 x 3行 = 12枚 / ページ
   const ITEMS_PER_PAGE = 12;
+  const isLargeExport = data.length > 80;
   
   // データをページごとに分割
   const pages = [];
@@ -36,6 +37,8 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
   const handleExport = async () => {
     if (!printRef.current || data.length === 0) return;
     setIsGenerating(true);
+    const scale = isLargeExport ? 1 : 1.6;
+    const jpegQuality = isLargeExport ? 0.6 : 0.8;
 
     // レンダリングとスタイル適用（visibility: visible）を待つための待機時間
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -58,7 +61,7 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
         
         // Canvas生成
         const canvas = await html2canvas(pageEl, {
-          scale: 2, // 解像度向上のため2倍でレンダリング
+          scale, // 大量データ時は軽量化
           useCORS: true,
           logging: false,
           width: 1920,
@@ -68,7 +71,7 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
           backgroundColor: '#ffffff', // 背景を白に
         } as any); // Type definition for scale might be missing in some versions
 
-        const imgData = canvas.toDataURL('image/jpeg', 0.8); // 品質80%
+        const imgData = canvas.toDataURL('image/jpeg', jpegQuality);
 
         if (i > 0) pdf.addPage();
         pdf.addImage(imgData, 'JPEG', 0, 0, 1920, 1080);
@@ -79,7 +82,16 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
         await new Promise(resolve => setTimeout(resolve, 10));
       }
 
-      pdf.save(`seo-rank-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      // blob経由で確実にダウンロード
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `seo-rank-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('PDF Export Error:', error);
       alert('PDF出力中にエラーが発生しました。');
@@ -113,6 +125,13 @@ export const PdfExportButton: React.FC<PdfExportButtonProps> = ({
           ) : 'PDF出力'
         )}
       </button>
+
+      {isGenerating && (
+        <div className="fixed bottom-4 right-4 z-50 bg-white border border-gray-200 shadow-lg rounded-md px-3 py-2 text-xs text-gray-700">
+          {progress ? `PDF生成中 ${progress.current}/${progress.total}` : 'PDF生成中...'}
+          {isLargeExport && <span className="ml-2 text-gray-400">軽量モード</span>}
+        </div>
+      )}
 
       {/* PDF生成用隠しレンダリングエリア */}
       <div 
